@@ -1,738 +1,282 @@
-# Instituto Profesional San Sebastián
-# Docente: Sebastián Cabezas Ríos
-
-## Desarrollo Web I - Framework Laravel 12
-
-### Instalación
-
-#### Studio Firebase de Google
-
-1. Ingresa a https://studio.firebase.google.com
-2. Crea un nuevo proyecto Laravel
-
-### En Windows
-
-1. Instala XAMPP
-2. Instala composer desde [getcomposer.org/download](https://getcomposer.org/download/)
-3. Ingresa a un directorio y ejecuta el siguiente comando (reemplaza nombre-proyecto con el nombre de tu aplicación):
-```bash
-composer create-project laravel/laravel nombre-proyecto
-```
-4. Ingresa a tu proyecto (reemplaza nombre-proyecto con el nombre de tu aplicación)
-```bash
-cd nombre-proyecto
-```
-5. Ejecuta el proyecto:
-```bash
-php artisan serve
-```
-
-### Configuración del Proyecto
-
-#### 1. Crearemos un Controlador para usuario (UserController.php)
-En este controlador dejaremos todo lo realacionado a los usuarios del sistema, login, logout, listar, crear, editar, encender y apagar. Todas serán funciones, además tenemos que crear unas funciones propias para llamar a cada vista relacionada con la actividad a realizar.
-
-```bash
-php artisan make:controller UserController
-```
-
-##### 1.a showFormRegistro() en UserController.php
-
-Nos permitirá acceder a la vista de registro, debemos colocar la misma organización de carpetas y archivo que tendremos cuando creemos la vista (es lo que va entre paréntesis). Como segundo parámetro van los datos a la vista.
-
-Tendremos una variable $datos que nos permitirá pasar datos a la vista, inicialmente dejaremos una instrucción.
-
-```php
-use Illuminate\Support\Facades\Auth;
-```
-
-```php
-public function showFormRegistro()
-{
-    if (Auth::check()) {
-        // Verifica si el el usuario ya está autenticado
-        return redirect()->route('/')->with('success', 'Tiene una sesión iniciada, ciérrela para crear una nueva.');
-    }
-
-    $datos = [
-        'instruccion' => 'Registre Credenciales del nuevo usuario'
-    ];
-    return view('backoffice/users/registro', $datos);
-}
-```
-
-##### 1.b Modificamos el controlador base (Controller.php)
-
-Se deben validar los datos. Para personalizar el mensaje, entonces modificaremos el controlador extendido (Controller.php) para que contenga los mensajes.
-
-El archivo Controller.php quedará de la siguiente manera:
-
-```php
-namespace App\Http\Controllers;
-
-abstract class Controller
-{
-    // Mensajes personalizados para esta validación
-    public $messages = [
-        'username.unique' => 'Este nombre de usuario (email) ya está en uso. Por favor, elige otro.',
-        // Puedes añadir más mensajes específicos si lo necesitas, por ejemplo:
-        // 'name.required' => 'El campo Nombre es obligatorio.',
-        // 'password.confirmed' => 'Las contraseñas no coinciden.',
-    ];
-}
-```
-##### 1.c guardarNuevo en UserController.php
-
-1. Validamos los datos
-2. Creamos el usuario con la función del modelo Create
-3. Se redirige a la ruta definida
-
-```php
-use App\Models\User;  // Importar el modelo User
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;  // Importar la fachada Hash
-use Illuminate\Validation\Rules\Password;  // Importar la clase Password
-```
-```php
-public function guardarNuevo(Request $request)
-{
-    // 1. Validación de los datos del formulario
-    $request->validate([
-        'name' => ['required', 'string', 'max:255'],
-        'username' => ['required', 'string', 'lowercase', 'max:255', 'unique:' . User::class],
-        'password' => ['required', 'confirmed', Password::defaults()],
-    ], $this->messages);
-
-    // 2. Creación del nuevo usuario en la base de datos
-    $user = User::create([
-        'name' => $request->name,
-        'username' => $request->username,
-        'password' => Hash::make($request->password),
-    ]);
-
-    // Opcional: Disparar el evento Registered si necesitas enviar correos de verificación, etc.
-    // event(new Registered($user));
-
-    // 3. Redirigir a la página de login con un mensaje de éxito
-    return redirect()->route('/')->with('success', 'Usuario creado, debe iniciar sesión.');
-}
-```
-##### 1.d showFormLogin en UserController.php
-
-```php
-public function showFormLogin()
-{
-    $datos = [
-        'instruccion' => 'Ingrese Credenciales'
-    ];
-
-    if (Auth::check()) {
-        // Si el usuario ya está autenticado, redirígelo a la página principal o dashboard
-        return redirect()->route('/')->with('success', 'Tiene una sesión iniciada, ciérrela para iniciar una nueva.');
-    }
-
-    return view('backoffice/users/login', $datos);
-}
-```
-##### 1.e login en UserController.php
-
-Es la acción de loguear. Buscará el usuario en la base de datos y si cumple con las credenciales, entonces podrá ingresar. Si no lo encuentra, entonces nos muestra un error.
-
-```php
-public function login(Request $request)
-{
-    $credentials = $request->validate([
-        'username' => ['required', 'email'],
-        'password' => ['required'],
-    ]);
-
-    if (Auth::attempt($credentials)) {
-        $request->session()->regenerate();
-        $user = Auth::user();
-
-        return redirect()->route('/')->with('success', "Bienvenido {$user->name}, tiene una sesión iniciada exitosamente.");
-    }
-
-    return back()->withErrors([
-        'username' => 'Las credenciales no coinciden con nuestros registros.',
-    ])->onlyInput('username');
-}
-```
-
-##### 1.f logout en UserController.php
-
-Es la acción de desloguear. Cerrará la sesión eliminando el token actual.
-
-```php
-public function logout(Request $request)
-{
-    Auth::logout();
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-    return redirect()->route('/')->with('success', 'Sesión cerrada exitosamente.');
-}
-```
-
-#### 2. Modificaremos el Modelo del Usuario
-
-En el archivo app/Models/User.php
-
-Modificamos:
-
-```php
-protected $fillable = [
-    'name',
-    'username',
-    'password',
-];
-```
-Agregamos a la clase:
-```php
-public function username()
-{
-    return 'username';
-}
-```
-
-#### 3. Modificaremos el archivo de migraciones del usuario
-
-En el archivo database/migrations/0001_01_01_000000_create_users_table.php
-
-Modificamos en el método up:
-
-```php
-Schema::create('users', function (Blueprint $table) {
-    $table->id();
-    $table->string('name');
-    $table->string('username')->unique();
-    $table->timestamp('email_verified_at')->nullable();
-    $table->string('password');
-    $table->rememberToken();
-    $table->timestamps();
-});
-
-Schema::create('password_reset_tokens', function (Blueprint $table) {
-    $table->string('username')->primary();
-    $table->string('token');
-    $table->timestamp('created_at')->nullable();
-});
-```
-
-#### 4. Crearemos las vistas del proyecto
-
-Estos archivos son los que el usuario interactúa.
-
-##### 4.a Vista index.php para la landing page
-
-Creará la carpeta landing, donde dejaremos todos los archivos relacionados a la landing page.
-
-```bash
-php artisan make:view landing/index
-```
-
-Código del archivo index.blade.php
-
-```php
-<!DOCTYPE html>
-<html lang="es">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Landing</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
-</head>
-
-<body class="container">
-    <h1 class="text-primary">Landing Page</h1>
-    <h3>Esta es una landing page...</h3>
-    @if (session('success'))
-        <div class="alert alert-success">
-            {{ session('success') }}
-        </div>
-    @endif
-    @guest
-        <a href="{{ route('user.form.show.login') }}" class="me-2">
-            <button class="btn btn-primary">Iniciar Sesión</button>
-        </a>
-        <a href="{{ route('user.form.show.registro') }}">
-            <button class="btn btn-primary">Crear Usuario</button>
-        </a>
-    @endguest
-    {{-- Muestra este botón SI SÍ hay sesión iniciada (está "autenticado") --}}
-    @auth
-        <p>Hola, {{ Auth::user()->name }}!</p>
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" class="btn btn-danger">Cerrar Sesión</button>
-        </form>
-    @endauth
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous">
-    </script>
-</body>
-
-</html>
-```
-
-##### 4.b Vista registro.php para la registrar usuarios
-
-Creará la carpeta backoffice/users, donde dejaremos todos los archivos relacionados al usuario en el backoffice.
-
-```bash
-php artisan make:view backoffice/users/registro
-```
-
-Código del archivo registro.blade.php
-
-```php
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
-</head>
-<body class="container">
-    <h1 class="text-primary">{{ $instruccion }}</h1>
-    @if ($errors->any())
-        <div class="alert alert-danger"> {{-- O usa tus clases CSS para estilo (ej. text-red-500, bg-red-100) --}}
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-    <form action="{{ route('user.form.registro') }}" method="POST">
-        @csrf
-        <input type="text" class="mb-2 form-control" name="name" placeholder="Nombre" autofocus value="Sebastian">
-        <input type="email" class="mb-2 form-control" name="username" placeholder="EMail" value="scabezas@ciisa.cl">
-        <input type="password" class="mb-2 form-control" name="password" placeholder="Contraseña" value="holaMundo">
-        <input type="password" class="mb-2 form-control" name="password_confirmation" placeholder="Repite la contraseña" value="holaMundo">
-        <button type="submit" class="mb-2 btn btn-primary">Registrar nuevo usuario</button>
-    </form>
-    <a href="/">Volver a la raiz</a>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous">
-    </script>
-</body>
-</html>
-```
-
-##### 4.c Vista login.php para el ingreso de los usuarios
-
-Creará en la carpeta backoffice/users el archivo login.
-
-```bash
-php artisan make:view backoffice/users/login
-```
-
-Código del archivo login.blade.php
-
-```php
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-LN+7fdVzj6u52u30Kp6M/trliBMCMKTyK833zpbD+pXdCLuTusPj697FH4R/5mcr" crossorigin="anonymous">
-</head>
-<body class="container">
-    <h3>{{ $instruccion }}</h3>
-    @if (session('success'))
-        <div class="alert alert-success mb-4">
-            <ul>{{ session('success') }}</ul>
-        </div>
-    @endif
-    @if ($errors->any())
-        <div class="alert alert-danger"> {{-- O usa tus clases CSS para estilo (ej. text-red-500, bg-red-100) --}}
-            <ul>
-                @foreach ($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-    <form class="text-center" action="{{ route('user.form.login') }}" method="POST">
-        @csrf
-        <input type="email" class="mb-2 form-control" name="username" placeholder="Username" autofocus value="scabezas@ciisa.cl">
-        <input type="password" class="mb-2 form-control" name="password" placeholder="******" value="holaMundo">
-        <button type="submit" class="mb-2 btn btn-primary">Login</button>
-    </form>
-    <a href="/">Volver a la raiz</a>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-ndDqU0Gzau9qJ1lfW4pNLlhNTkCfHzAVBReH9diLvGRem5+R9g2FzA8ZGN954O5Q" crossorigin="anonymous">
-    </script>
-</body>
-</html>
-```
-
-#### 5. Rutas
-
-El archivo routes/web.php contiene la información de acceso a las rutas que tendrá nuestra web. Podrá contener métodos get (para mostrar información) y post (para ingresar/modificar información).
-
-El contenido del archivo es el siguiente:
-
-```php
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\UserController;
-
-Route::get('/', function () {
-    return view('landing/index');
-})->name('/');
-
-Route::get('/backoffice/login', [UserController::class, 'showFormLogin'])->name('user.form.show.login');
-Route::post('/backoffice/login', [UserController::class, 'login'])->name('user.form.login');
-
-Route::get('/backoffice/create-user', [UserController::class, 'showFormRegistro'])->name('user.form.show.registro');
-Route::post('/backoffice/create-user', [UserController::class, 'guardarNuevo'])->name('user.form.registro');
-
-Route::post('/backoffice/logout', [UserController::class, 'logout'])->name('logout');
-```
-
-### Configuración Extra en Studio Firebase
-
-#### 1. Variable de entorno en archivo .env de la raiz del proyecto
-
-Reemplazamos APP_URL=http://localhost por la url que nos entrega firebase studio
-
-```env
-APP_URL=https://9000-firebase-ipss-dwi-25-2-clases-1751379241939.cluster-etsqrqvqyvd4erxx7qq32imrjk.cloudworkstations.dev
-```
-
-### 2. ServiceProvider.php
-
-Modificamos el archivo app/Providers/AppServiceProvider.php
-la función boot debe quedar de esta manera:
-```php
-use Illuminate\Support\Facades\URL;
-```
-```php
-public function boot(): void
-{
-    if (config('app.env') === 'local'){
-        URL::forceRootUrl(config('app.url'));
-        URL::forceScheme('https');
-    }
-}
-```
-### Configuración Base de datos
-
-#### 1. Eliminar el archivo en database/database.sqlite
-
-#### 2. Migrar la base de datos para que se cree
-
-```bash
-php artisan migrate
-```
-
-#### 2.1 En Windows
-
-Volver a levantar Laravel
-
-```bash
-php artisan serve
-```
-
-#### Studio Firebase
-
-Recargar la página de la URL del proyecto.
-
-
-# Después de Clonar el repo
-
-Instalar las dependencias de composer
-
-```bash
-composer install
-```
-
-Copiar el entorno
-
-```bash
-cp .env.example .env
-```
-
-Generar la llave
-
-```bash
-php artisan key:generate
-```
-
-Reemplazar la URL del entorno por la que nos entrega Firebase
-
-https://9000-firebase-dwi-25-2-clases-1752585818839.cluster-qhrn7lb3szcfcud6uanedbkjnm.cloudworkstations.dev
-
-Migrar la base de datos
-
-```bash
-php artisan migrate
-```
-Preguntará si queremos crear la base de datos sqlite, respondemos YES
-
-----
-
-# Incorporar Vuexy como template
-
-## 1. Crear la carpeta vuexy en public
-
-```bash
-mkdir public/vuexy
-```
-
-## 2. Subir las carpetas comprimidas en vuexy
-
-2.1 assets.zip
-2.2 dist.zip
-2.3 fonts.zip
-
-## 3. En la consola descomprimir los archivos
-
-```bash
-unzip assets.zip
-```
-```bash
-unzip dist.zip
-```
-```bash
-unzip fonts.zip
-```
-
-## 4. Borrar los archivos .zip
-
-```bash
-rm assets.zip
-```
-```bash
-rm dist.zip
-```
-```bash
-rm fonts.zip
-```
-```bash
-rm -rf __MACOSX
-```
-
-## Si ya tienen clonado el repositorio:
-
-```bash
-git pull
-```
-
-## Recintos: Javiera González
-
-### Controlador
-```php
-php artisan make:controller RecintosController
-```
-### Model
-```php
-php artisan make:model RecintosModel
-```
-### Vista
-```php
-php artisan make:view backoffice/recintos/index
-```
-
-## Camisetas (Dorsales): Paula León
-```php
-php artisan make:controller CamisetasController
-```
-### Modelo
-```php
-php artisan make:model CamisetasModel
-```
-### Vista
-```php
-php artisan make:view backoffice/camisetas/index
-```
-
-## Comunas: Santos Cruz
-### Controller
-```php
-php artisan make:controller ComunasController
-```
-### Modelo
-```php
-php artisan make:model ComunasModel
-```
-### Vista
-```php
-php artisan make:view backoffice/comunas/index
-```
-### Hora Inicio: Jean Doize
-### Controller
-```
-php artisan make:controller HorainicioController
-```
-### Modelo
-```
-php artisan make:model HorainicioModel
-```
-### Vista
-```
-php artisan make:view backoffice/horainicio/index
-```
-## Hora Fin: Gerard Aliaga
-### Controller
-```php
-php artisan make:controller HoraFinController
-```
-### Modelo
-```php
-php artisan make:model HoraFinModel
-```
-### Vista
-```php
-php artisan make:view backoffice/horafin/index
-```
-## Medios de Pago: Miguel Cabello
-### Controlador
-```php
-php artisan make:controller MediosPagosController
-```
-### Modelo
-```php
-php artisan make:model MediosPagosModel
-```
-### Vista
-```php
-php artisan make:view backoffice/mediosPagos/index
-```
-### Premios: Luciano Lopresti
-### Controller
-```php
-php artisan make:controller PremiosController
-```
-### Modelo
-```php
-php artisan make:model PremiosModel
-```
-### Vista
-```php
-php artisan make:view backoffice/premios/index
-```
-## Posiciones: Ethan Mayorines
-### Controller
-```php
-php artisan make:controller PosicionController
-```
-### Modelo
-```php
-php artisan make:model PosicionModel
-```
-### Vista
-```php
-php artisan make:view backoffice/posicion/index
-```
-### Campeonato: Cristian Gomez
-### Controller
-```php
-php artisan make:controller CampeonatoController
-```
-### Modelo
-```php
-php artisan make:model CampeonatoModel
-```
-### Vista
-```php
-php artisan make:view backoffice/campeonato/index
-```
-
-## Dias de la Semana: Indira Anignir
-
-### Controller
-```php
-php artisan make:controller DiasSemanaController
-```
-### Modelo
-```php
-php artisan make:model DiasSemanaModel
-```
-### Vista
-```php
-php artisan make:view backoffice/diassemana/index
-```
-
-## Nacionalidad: Manuel Mena
-
-### Controller
-```php
-php artisan make:controller NacionalidadController
-```
-### Modelo
-```php
-php artisan make:model NacionalidadModel
-```
-### Vista
-```php
-php artisan make:view backoffice/nacionalidad/index
-```
-## Oficios: Hector Gonzalez
-### Controller
-```php
-php artisan make:controller OficiosController
-```
-### Modelo
-```php
-php artisan make:model OficiosModel
-```
-### Vista
-```php
-php artisan make:view backoffice/oficios/index
-```
-## Categorias: Robert Leyton
-### Controller
-```php
-php artisan make:controller CategoriaController
-```
-### Modelo
-```php
-php artisan make:model CategoriaModel
-```
-### Vista
-```php
-php artisan make:view backoffice/categoria/index
-```
-
-## Genero: Andrea Horna
-### Controller
-```php
-php artisan make:controller GeneroController
-```
-### Modelo
-```php
-php artisan make:model GeneroModel
-```
-### Vista
-```php
-php artisan make:view backoffice/genero/index
-```
-## Pierna Dominante: Vicente Vargas
-### Controller
-```php
-php artisan make:controller PiernaDominanteController
-```
-### Modelo
-```php
-php artisan make:model PiernaDominanteModel
-```
-### Vista
-```php
-php artisan make:view backoffice/piernaDominante/index
-```
-
-## Contacto: Justin Kooyip
-php artisan make:controller MedioContactoController
-php artisan make:model MedioContactoModel
-php artisan make:view backoffice/mediocontacto/index
-
+# Documentacion proceso permisos de usuario.
+
+Estudiantes: Hector Gonzalez y Ethan Mayorines.
+
+Profesor: Sebastian Cabezas.
+## Pasos a seguir.
+
+### 1) Instalar el paquete "Laravel Permission".
+
+'https://spatie.be/docs/laravel-permission/v6/introduction'
+
+- Dentro de la pagina vamos a "Installation in Laravel" y hacemos click en el.
+
+- En la pagina de "Installation in Laravel" nos aparecera el siguiente comando de composer: 
+~~~
+composer require spatie/laravel-permission 
+~~~
+
+- En nuestro proyecto debemos abrir una nueva terminal y pegar el comando copiado anteriormente.
+
+### 2) Publicar la migracion del paquete.
+
+- Despues debemos copiar y pegar el comando a continuacion en la terminal.
+~~~
+ php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+~~~
+
+
+- En la carpeta "migrations" se nos tuvo que haber creado la siguiente tabla "2025_09_02_132903_create_permission_tables". De esta manera nos asehuramos que el comando anterior se ejecuto correctamente.
+
+### 3) Borrar la cache de nuestro proyecto.
+
+- Debemos copiar y pegar en la terminal el siguente comando:
+~~~
+php artisan optimize:clear
+~~~
+### 4) Borrar la tabla roles.
+
+- Si se tiene una tabla con el nombre "2025_08_05_160528_create_table_roles" esta se debe eliminar para no chocar con la tabla que laravel permissions creara.
+
+### 5) Modificar los seeders (Si es que se tienen).
+
+- Eliminar los seeders llamados "DB::table('roles')" y "DB::table('users')".
+
+- A continuacion al final del archivo pegamos el siguiente codigo:
+
+~~~
+$rolAdmin = $role =  Role::firstOrCreate(['name' => 'admin']);
+        $rolJugador = $role =  Role::firstOrCreate(['name' => 'jugador']);
+        $rolEntrenador = $role =  Role::firstOrCreate(['name' => 'entrenador']);
+
+        $adminPermissions = [
+            'user-list',
+            'user-create',
+            'user-edit',
+            'user-delete',
+            'user-activate',
+            'rol-list',
+            'rol-create',
+            'rol-edit',
+            'rol-delete',
+            'producto-list',
+            'producto-create',
+            'producto-edit',
+            'producto-delete',
+            'pedido-list',
+            'pedido-anulate',
+            'cargos-list',
+            'cargos-create',
+            'cargos-edit',
+            'cargos-delete',
+            'comunas-list',
+            'comunas-create',
+            'comunas-edit',
+            'comunas-delete',
+            'generos-list',
+            'generos-create',
+            'generos-edit',
+            'generos-delete',
+            'oficios-list',
+            'oficios-create',
+            'oficios-edit',
+            'oficios-delete',
+            'posiciones-list',
+            'posiciones-create',
+            'posiciones-edit',
+            'posiciones-delete',
+            'premios-list',
+            'premios-create',
+            'premios-edit',
+            'premios-delete',
+            'categorias-list',
+            'categorias-create',
+            'categorias-edit',
+            'categorias-delete',
+            'mediospagos-list',
+            'mediospagos-create',
+            'mediospagos-edit',
+            'mediospagos-delete',
+            'recintos-list',
+            'recintos-create',
+            'recintos-edit',
+            'recintos-delete',
+            'camisetas-list',
+            'camisetas-create',
+            'camisetas-edit',
+            'camisetas-delete',
+            'campeonato-list',
+            'campeonato-create',
+            'campeonato-edit',
+            'campeonato-delete',
+            'diassemana-list',
+            'diassemana-create',
+            'diassemana-edit',
+            'diassemana-delete',
+            'piernadominante-list',
+            'piernadominante-create',
+            'piernadominante-edit',
+            'piernadominante-delete',
+            'hora-inicio-list',
+            'hora-inicio-create',
+            'hora-inicio-edit',
+            'hora-inicio-delete',
+            'hora-fin-list',
+            'hora-fin-create',
+            'hora-fin-edit',
+            'hora-fin-delete',
+            'mediocontacto-list',
+            'mediocontacto-create',
+            'mediocontacto-edit',
+            'mediocontacto-delete',
+            'nacionalidad-list',
+            'nacionalidad-create',
+            'nacionalidad-edit',
+            'nacionalidad-delete'
+        ];
+
+
+        $jugadorPermissions = [
+            'perfil-view',
+            'campeonato-list',
+            'premios-list',
+            'posiciones-list',
+            'categoria-list',
+            'recintos-list',
+            'diassemana-list',
+            'mediocontacto-list',
+            'piernadominante-list',
+            'camisetas-list',
+            'pedido-view',
+            'pedido-cancel'
+        ];
+
+
+        $entrenadorPermissions = [
+            'perfil-view',
+            'jugadores-list',
+            'jugadores-edit',
+            'categoria-list',
+            'campeonato-list',
+            'premios-list',
+            'posiciones-list',
+            'recintos-list',
+            'diassemana-list',
+            'mediocontacto-list',
+            'piernadominante-list',
+            'entrenamiento-create',
+            'entrenamiento-edit',
+            'entrenamiento-list'
+        ];
+
+        // Asignar esos permisos a los roles especificos
+        foreach ($adminPermissions as $permiso) {
+            $permission = Permission::firstOrCreate(['name' => $permiso]); // se crean los permisos
+            $rolAdmin->givePermissionTo($permission); // se asignan los permisos al rol admin
+        }
+
+        foreach ($jugadorPermissions as $permiso) {
+            $permission = Permission::firstOrCreate(['name' => $permiso]); // se crean los permisos
+            $rolJugador->givePermissionTo($permission); // se asignan los permisos al rol jugador
+        }
+
+        foreach ($entrenadorPermissions as $permiso) {
+            $permission = Permission::firstOrCreate(['name' => $permiso]); // se crean los permisos
+            $rolEntrenador->givePermissionTo($permission); // se asignan los permisos al rol entrenador
+        }
+
+        // Crear usuarios de prueba
+        $adminUser = User::firstOrCreate(
+            ['rut' => '19704556-6'],
+            [
+                'rut' => '12345678-9',
+                'name' => 'Sebastián',
+                'lastname' => 'Cabezas',
+                'password' => Hash::make('holaMundo'),
+                'fechaNacimiento' => '1987-06-08',
+                'generoId' => 2,
+                'cargoId' => 1,
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+
+        $jugadorUser = User::firstOrCreate(
+            ['rut' => '21176572-0'],
+            [
+                'name' => 'Ethan',
+                'lastname' => 'Mayorines',
+                'password' => Hash::make('holaMundo'),
+                'fechaNacimiento' => '1987-06-08',
+                'generoId' => 2,
+                'cargoId' => 1,
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+
+        $entrenadorUser = User::firstOrCreate(
+            ['rut' => '20954121-1'],
+            [
+                'name' => 'Martina',
+                'lastname' => 'Antilef',
+                'password' => Hash::make('holaMundo'),
+                'fechaNacimiento' => '1987-06-08',
+                'generoId' => 2,
+                'cargoId' => 1,
+                'activo' => true,
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        );
+
+        $adminUser->assignRole($rolAdmin); // Asignar el rol admin al usuario admin
+        $jugadorUser->assignRole($rolJugador); // Asignar el rol cliente al usuario cliente
+        $entrenadorUser->assignRole($rolEntrenador); // Asignar el rol entrenador al usuario entrenador
+~~~
+
+- Se debe hacer las importaciones de Spatie "use Spatie\Permission\Models\Permission;" y "use Spatie\Permission\Models\Role;".
+
+### 6) Agregar el trait HasRoles.
+
+- Tanto en el modelo de roles y users (Esto se debe hacer en todos los modelos que a futuro usen permisos).
+
+~~~
+use Spatie\Permission\Traits\HasRoles;
+
+use HasFactory, HasRoles;
+~~~
+
+
+### 7)Modificar rolesController.
+
+- En vez de tener:  
+~~~
+$lista = RolesModel::all();
+~~~
+ Se debe tener: 
+ ~~~
+$lista = RolesModel::with('permissions')->get();
+ ~~~
+
+### 8) Realizar migraciones.
+- Primero por seguridad realizar:
+~~~
 php artisan migrate:fresh
+~~~
+
+- Si usted *TIENE* seeders en su proyecto debe usar el comando:
+~~~
+ php artisan migrate:fresh --seed
+ ~~~
+
+### 9) Modificar la tabla roles creada por laravel permissions.
+
+- Buscar la tabla roles dentro del archivo y agregar lo siguiente despues del campo "guard_name":
+~~~
+$table->boolean('activo')->default(true);
+~~~
+
+- Despues de esto se debe realizar nuevamente el paso 8.
