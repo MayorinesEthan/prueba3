@@ -93,23 +93,26 @@ class RolesController extends Controller
     }
 
     public function store(Request $request)
-    {
-        if (!Auth::check()) {
-            // Verifica si el usuario NO está autenticado
-            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
-        }
-        $user = Auth::user();
-
-        $request->validate([
-            'roles_nombre' => ['required', 'string', 'max:50', 'min:3'],
-        ], $this->messages);
-
-        $nuevo = RolesModel::create([
-            'nombre' => $request->roles_nombre,
-        ]);
-
-        return redirect()->back()->with('success', ':) Rol creado exitosamente.');
+{
+    if (!Auth::check()) {
+        return redirect()->route('/')->withErrors('Debe iniciar sesión.');
     }
+
+    $user = Auth::user();
+
+    // Validación de los campos
+    $request->validate([
+        'roles_nombre' => ['required', 'string', 'max:50', 'min:3'],
+    ]);
+
+    // Crear un nuevo rol
+    $nuevo = RolesModel::create([
+        'nombre' => $request->roles_nombre,
+    ]);
+
+    // Redirigir con mensaje de éxito
+    return redirect()->back()->with('success', ':) Rol creado exitosamente.');
+}
 
     public function down(Request $request, $_id)
     {
@@ -128,6 +131,7 @@ class RolesController extends Controller
         }
         return redirect()->back()->withErrors('No se realizaron Cambios.');
     }
+    
     public function up(Request $request, $_id)
     {
         if (!Auth::check()) {
