@@ -18,7 +18,8 @@ class RolesController extends Controller
 
         $user = Auth::user();
 
-        $lista = RolesModel::all();
+        //$lista = RolesModel::all();
+        $lista = RolesModel::with('permissions')->get();
 
         $datos = [
             'textos' => [
