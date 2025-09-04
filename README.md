@@ -42,6 +42,12 @@ php artisan optimize:clear
 
 - Eliminar los seeders llamados "DB::table('roles')" y "DB::table('users')".
 
+- Importar lo siguiente:
+ ~~~
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\Models\Permission;
+ ~~~
+
 - A continuacion al final del archivo pegamos el siguiente codigo:
 
 ~~~
@@ -237,9 +243,7 @@ $rolAdmin = $role =  Role::firstOrCreate(['name' => 'admin']);
         $entrenadorUser->assignRole($rolEntrenador); // Asignar el rol entrenador al usuario entrenador
 ~~~
 
-- Se debe hacer las importaciones de Spatie "use Spatie\Permission\Models\Permission;" y "use Spatie\Permission\Models\Role;".
-
-### 6) Agregar el trait HasRoles.
+### 6) Agregar el trait HasRoles en los modelos que usen el sistem de Roles y Permisos
 
 - Tanto en el modelo de roles y users (Esto se debe hacer en todos los modelos que a futuro usen permisos).
 
@@ -249,6 +253,13 @@ use Spatie\Permission\Traits\HasRoles;
 use HasFactory, HasRoles;
 ~~~
 
+- Y en RolesModel agregar el siguiente método
+~~~
+public function permissions()
+{
+    return $this->belongsToMany(Permission::class, 'role_has_permissions', 'role_id', 'permission_id');
+}
+~~~
 
 ### 7)Modificar rolesController.
 
