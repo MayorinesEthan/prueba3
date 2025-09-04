@@ -34,6 +34,7 @@
             'accion' => 'new',
             'ruta' => $datos['mantenedor']['routes']['new'],
             'campos' => $datos['mantenedor']['fields'],
+            'permisos' => $permisos
         ])
         <!--/ Modal para agregar nuevo rol -->
 

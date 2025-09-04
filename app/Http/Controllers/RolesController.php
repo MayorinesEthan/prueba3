@@ -6,6 +6,7 @@ use App\Models\RolesModel;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
+use Spatie\Permission\Models\Permission;
 
 class RolesController extends Controller
 {
@@ -21,6 +22,7 @@ class RolesController extends Controller
 
         //$lista = RolesModel::all();
         $lista = RolesModel::with('permissions')->get();
+        $permisos = Permission::all(); // ✅ todos los permisos
 
         $datos = [
             'textos' => [
@@ -41,6 +43,7 @@ class RolesController extends Controller
                     'up' => 'backoffice.roles.up',
                     'down' => 'backoffice.roles.down',
                     'delete' => 'backoffice.roles.destroy',
+                    'permissions' => 'backoffice.roles.update.permissions', // 🔹 nueva ruta
                 ],
                 'fields' => [
                     [
@@ -85,11 +88,12 @@ class RolesController extends Controller
                 'logo' => 'https://ipss.cl/wp-content/uploads/2025/04/cropped-LogoIPSS_sello50anos_webipss.png'
             ]
         ];
-
+        
         return view('backoffice/roles/index', [
             'datos' => $datos,
             'user' => $user,
-            'lista' => $lista
+            'lista' => $lista,
+            'permisos' => $permisos
         ]);
     }
 
@@ -168,5 +172,60 @@ class RolesController extends Controller
         $buscado->delete();
 
         return redirect()->back()->with('success', ':) Rol eliminado exitosamente.');
+    }
+
+    // Sincroniza todos los permisos (botón "Guardar cambios")
+    public function updatePermissions(Request $request, $id)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+
+        $request->validate([
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string'
+        ]);
+
+        $role = Role::findOrFail($id);
+
+        // sincroniza (quita los no marcados y agrega los marcados)
+        $role->syncPermissions($request->input('permissions', []));
+
+        return redirect()->back()->with('success', 'Permisos actualizados correctamente.');
+    }
+
+    // Toggle (attach/detach) individual permiso via AJAX (fetch)
+    public function togglePermission(Request $request, $id)
+    {
+        if (!Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        $request->validate([
+            'permission' => 'required|string',
+            'checked' => 'required|boolean',
+        ]);
+
+        $role = Role::findOrFail($id);
+        $permName = $request->input('permission');
+
+        if ($request->boolean('checked')) {
+            if (! $role->hasPermissionTo($permName)) {
+                $role->givePermissionTo($permName);
+            }
+            $status = 'attached';
+        } else {
+            if ($role->hasPermissionTo($permName)) {
+                $role->revokePermissionTo($permName);
+            }
+            $status = 'detached';
+        }
+
+        return response()->json([
+            'ok' => true,
+            'status' => $status,
+            'role' => $role->name,
+            'permission' => $permName
+        ]);
     }
 }

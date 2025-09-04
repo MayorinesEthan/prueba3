@@ -1,27 +1,33 @@
 <?php
 
-use App\Http\Controllers\AsideController;
-use App\Http\Controllers\CamisetasController;
-use App\Http\Controllers\CampeonatoController;
-use App\Http\Controllers\CargosController;
-use App\Http\Controllers\CategoriaController;
-use App\Http\Controllers\ComunasController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DiasSemanaController;
+use App\Http\Controllers\AsideController;
+use App\Http\Controllers\RolesController;
+use App\Http\Controllers\CargosController;
 use App\Http\Controllers\GeneroController;
+use App\Http\Controllers\ComunasController;
 use App\Http\Controllers\HoraFinController;
+use App\Http\Controllers\OficiosController;
+use App\Http\Controllers\PremiosController;
+use App\Http\Controllers\PosicionController;
+use App\Http\Controllers\RecintosController;
+use App\Http\Controllers\CamisetasController;
+use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\CampeonatoController;
+use App\Http\Controllers\DiasSemanaController;
 use App\Http\Controllers\HorainicioController;
-use App\Http\Controllers\MedioContactoController;
 use App\Http\Controllers\MediosPagosController;
 use App\Http\Controllers\NacionalidadController;
-use App\Http\Controllers\OficiosController;
+use Spatie\Permission\Middleware\RoleMiddleware;
+use App\Http\Controllers\MedioContactoController;
 use App\Http\Controllers\PiernaDominanteController;
-use App\Http\Controllers\PosicionController;
-use App\Http\Controllers\PremiosController;
-use App\Http\Controllers\RecintosController;
-use App\Http\Controllers\RolesController;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+
+// Registrar middleware para rutas
+Route::aliasMiddleware('role', RoleMiddleware::class);
+Route::aliasMiddleware('permission', PermissionMiddleware::class);
 
 Route::get('/', function () {
     return view('landing/index');
@@ -193,3 +199,12 @@ Route::post('/backoffice/aside', [AsideController::class, 'store'])->name('backo
 Route::post('/backoffice/aside/down/{_id}', [AsideController::class, 'down'])->name('backoffice.aside.down');
 Route::post('/backoffice/aside/up/{_id}', [AsideController::class, 'up'])->name('backoffice.aside.up');
 Route::post('/backoffice/aside/destroy/{_id}', [AsideController::class, 'destroy'])->name('backoffice.aside.destroy');
+
+// ROLES Y PERMISOS 
+Route::put('/backoffice/roles/{id}/permissions', [RolesController::class, 'updatePermissions'])
+    ->name('backoffice.roles.update.permissions')
+    ->middleware(['auth', 'role:admin']);
+
+Route::post('/backoffice/roles/{id}/permissions/toggle', [RolesController::class, 'togglePermission'])
+    ->name('backoffice.roles.toggle.permission')
+    ->middleware(['auth', 'role:admin']);
