@@ -280,3 +280,442 @@ $table->boolean('activo')->default(true);
 ~~~
 
 - Despues de esto se debe realizar nuevamente el paso 8.
+
+- ### 10) Agregar al inicio del archivo de Rutas los siguientes middlewares propios de Permission
+ ~~~
+Route::aliasMiddleware('role', RoleMiddleware::class);
+Route::aliasMiddleware('permission', PermissionMiddleware::class);
+ ~~~
+
+- ### 11) Crearemos una vista para la tabla de permisos y pegamos el siguiente codigo 
+~~~
+php artisan make:view backoffice/_partials/table_roles
+~~~
+
+~~~
+<table class="datatables-users table border-top">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Estado</th>
+            <th>Permisos</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (count($lista) == 0)
+            <tr>
+                <td colspan="5" class="text-center">Sin Registros</td>
+            </tr>
+        @else
+            @foreach ($lista as $item)
+                <tr>
+                    <td class="text-center">{{ $item->id }}</td>
+                    <td class="text-center">{{ $item->name }}</td>
+                    <td class="text-center">
+                        @if ($item->activo == 1)
+                            <span class="text-success">Activo</span>
+                        @else
+                            <span class="text-danger">Desactivado</span>
+                        @endif
+                    </td>
+                    <td class="text-center">
+                        <!-- Botón para abrir modal de detalles -->
+                        <button type="button" class="btn btn-info" data-bs-toggle="modal"
+                            data-bs-target="#modalPermisos{{ $item->id }}">
+                            Editar Permisos
+                        </button>
+
+                        <!-- Modal de permisos -->
+                        <div class="modal fade" id="modalPermisos{{ $item->id }}" tabindex="-1"
+                            aria-labelledby="modalLabel{{ $item->id }}" aria-hidden="true">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+
+                                    <!-- Header -->
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalLabel{{ $item->id }}">
+                                            Permisos del rol: {{ $item->name }}
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Cerrar"></button>
+                                    </div>
+
+                                    <!-- Form -->
+                                    <form action="{{ route($datos['mantenedor']['routes']['permissions'], $item->id) }}"
+                                        method="POST">
+                                        @csrf
+                                        @method('PUT')
+
+                                        <!-- Body con scroll -->
+                                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                                            <div class="row">
+                                                @foreach ($permisos as $permiso)
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="form-check">
+                                                            <input type="checkbox" class="form-check-input"
+                                                                name="permissions[]" value="{{ $permiso->name }}"
+                                                                id="permiso{{ $permiso->id }}_{{ $item->id }}"
+                                                                @if ($item->permissions->contains('id', $permiso->id)) checked @endif />
+                                                            <label class="form-check-label"
+                                                                for="permiso{{ $permiso->id }}_{{ $item->id }}">
+                                                                {{ $permiso->name }}
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        </div>
+
+                                        <!-- Footer fijo -->
+                                        <div class="modal-footer"
+                                            style="position: sticky; bottom: 0; background: white; z-index: 1000;">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Cerrar</button>
+                                            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                    </td>
+                    <td class="text-center">
+                        @if ($item->activo == 1)
+                            <!-- Botón de Desactivar -->
+                            <form action="{{ route($datos['mantenedor']['routes']['down'], $item->id) }}"
+                                method="POST" class="d-inline-block">
+                                @csrf
+                                <button type="submit" class="btn btn-danger"
+                                    onclick="this.disabled=true; this.innerHTML='<i class=\'icon-base ti tabler-loader\'></i> Procesando...'; setTimeout(() => this.form.submit(), 500);">
+                                    <i class="icon-base ti tabler-arrow-down"></i> Desactivar
+                                </button>
+                            </form>
+                        @else
+                            <!-- Botón de Activar -->
+                            <form action="{{ route($datos['mantenedor']['routes']['up'], $item->id) }}" method="POST"
+                                class="d-inline-block">
+                                @csrf
+                                <button type="submit" class="btn btn-primary"
+                                    onclick="this.disabled=true; this.innerHTML='<i class=\'icon-base ti tabler-loader\'></i> Procesando...'; setTimeout(() => this.form.submit(), 500);">
+                                    <i class="icon-base ti tabler-arrow-up"></i> Activar
+                                </button>
+                            </form>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+        @endif
+    </tbody>
+</table>
+
+~~~
+
+### 12) Modificamos el contenido de la vista backoffice/roles/index, eliminando el codigo y pegando el siguiente:
+
+~~~
+@extends('backoffice._partials.app')
+
+@section('content')
+    <div class="container-xxl flex-grow-1 container-p-y">
+        <h4 class="mb-1">{{ $datos['mantenedor']['titulo'] }}</h4>
+        <p class="mb-6">
+            {{ $datos['mantenedor']['instruccion'] }}
+        </p>
+
+        @include('backoffice._partials.messages')
+
+        <!-- Botón para Crear un Nuevo Rol -->
+        <div class="d-flex justify-content-between mb-4">
+            <a href="javascript:;" data-bs-toggle="modal" data-bs-target="#addRoleModal" class="btn btn-success">
+                <i class="icon-base ti ti-plus"></i> Crear Nuevo Rol
+            </a>
+        </div>
+
+        <!-- Role Table -->
+        <div class="card">
+            <div class="card-datatable">
+                @include('backoffice._partials.table_roles', [
+                    'lista' => $lista,
+                    'datos' => $datos
+                ])
+            </div>
+        </div>
+        <!--/ Role Table -->
+
+        <!-- Modal para agregar nuevo rol -->
+        @include('backoffice._partials.modal', [
+            'titulo' => $datos['mantenedor']['titulo'],
+            'instruccion' => $datos['mantenedor']['instruccion'],
+            'accion' => 'new',
+            'ruta' => $datos['mantenedor']['routes']['new'],
+            'campos' => $datos['mantenedor']['fields'],
+            'permisos' => $permisos
+        ])
+        <!--/ Modal para agregar nuevo rol -->
+
+    </div>
+@endsection
+
+~~~
+
+### 13) Modificar de forma completa el RolesController por el código siguiente:
+
+~~~
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\RolesModel;
+use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
+use Spatie\Permission\Models\Permission;
+
+class RolesController extends Controller
+{
+    public function index()
+    {
+
+        if (!Auth::check()) {
+            // Verifica si el usuario NO está autenticado
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+
+        $user = Auth::user();
+
+        //$lista = RolesModel::all();
+        $lista = RolesModel::with('permissions')->get();
+        $permisos = Permission::all(); // ✅ todos los permisos
+
+        $datos = [
+            'textos' => [
+                'titulo' => 'Iniciar Sesión | Sonkei FC',
+                'logo' => '/assets/imgs/logo_sonkei_v2.webp',
+                'nombre' => 'Sonkei FC',
+                'formulario' => [
+                    'titulo' => 'Bienvenido a Sonkei FC ⚽️',
+                    'instruccion' => 'Ingrese Credenciales'
+                ],
+            ],
+            'mantenedor' => [
+                'titulo' => 'Roles de Usuario',
+                'instruccion' => 'Los roles de usuario definen qué puede hacer un usuario dentro del sistema.',
+                'routes' => [
+                    'new' => 'backoffice.roles.new',
+                    'update' => 'backoffice.roles.update',
+                    'up' => 'backoffice.roles.up',
+                    'down' => 'backoffice.roles.down',
+                    'delete' => 'backoffice.roles.destroy',
+                    'permissions' => 'backoffice.roles.update.permissions', // 🔹 nueva ruta
+                ],
+                'fields' => [
+                    [
+                        'label' => 'Nombre',
+                        'name' => 'roles_nombre',
+                        'required' => true,
+                        'control' => [
+                            'element' => 'input',
+                            'type' => 'text',
+                            'classList' => [
+                                'form-control',
+                                'mb-4'
+                            ],
+                            'min' => 3,
+                            'max' => 50,
+                            'placeholder' => 'Ingrese un nombre'
+                        ],
+                        'access' => [
+                            'editableIn' => [
+                                'new' => true,
+                                'edit' => true,
+                                'show' => false,
+                                'up' => false,
+                                'down' => false,
+                                'delete' => false
+                            ],
+                            'readIn' => [
+                                'new' => true,
+                                'edit' => true,
+                                'show' => true,
+                                'up' => true,
+                                'down' => true,
+                                'delete' => true
+                            ]
+                        ]
+                    ],
+                ]
+            ],
+            'dev' => [
+                'nombre' => 'Instituto Profesional San Sebastián',
+                'url' => 'https://www.ipss.cl',
+                'logo' => 'https://ipss.cl/wp-content/uploads/2025/04/cropped-LogoIPSS_sello50anos_webipss.png'
+            ]
+        ];
+        
+        return view('backoffice/roles/index', [
+            'datos' => $datos,
+            'user' => $user,
+            'lista' => $lista,
+            'permisos' => $permisos
+        ]);
+    }
+
+    public function store(Request $request)
+{
+    if (!Auth::check()) {
+        return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+    }
+
+    $user = Auth::user();
+
+    // Validación de los campos
+    $request->validate([
+        'roles_nombre' => ['required', 'string', 'max:50', 'min:3'],
+    ]);
+
+    // Crear un nuevo rol
+    $nuevo = Role::create([
+        'name' => $request->roles_nombre
+    ]);
+    /*
+    $nuevo = RolesModel::create([
+        'nombre' => $request->roles_nombre,
+    ]);
+    */
+
+    // Redirigir con mensaje de éxito
+    return redirect()->back()->with('success', ':) Rol creado exitosamente.');
+}
+
+    public function down(Request $request, $_id)
+    {
+        if (!Auth::check()) {
+            // Verifica si el usuario NO está autenticado
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+        $user = Auth::user();
+
+        $buscado = RolesModel::find($_id);
+
+        if ($buscado->activo == 1) {
+            $buscado->activo = 0;
+            $buscado->save();
+            return redirect()->back()->with('success', ':) Rol apagado exitosamente.');
+        }
+        return redirect()->back()->withErrors('No se realizaron Cambios.');
+    }
+    
+    public function up(Request $request, $_id)
+    {
+        if (!Auth::check()) {
+            // Verifica si el usuario NO está autenticado
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+        $user = Auth::user();
+
+        $buscado = RolesModel::find($_id);
+
+        if ($buscado->activo == 0) {
+            $buscado->activo = 1;
+            $buscado->save();
+            return redirect()->back()->with('success', ':) Rol encendido exitosamente.');
+        }
+        return redirect()->back()->withErrors('No se realizaron Cambios.');
+    }
+    public function destroy(Request $request, $_id)
+    {
+        if (!Auth::check()) {
+            // Verifica si el usuario NO está autenticado
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+        $user = Auth::user();
+
+        $buscado = RolesModel::find($_id);
+
+        $buscado->delete();
+
+        return redirect()->back()->with('success', ':) Rol eliminado exitosamente.');
+    }
+
+    // Sincroniza todos los permisos (botón "Guardar cambios")
+    public function updatePermissions(Request $request, $id)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+
+        $request->validate([
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string'
+        ]);
+
+        $role = Role::findOrFail($id);
+
+        // sincroniza (quita los no marcados y agrega los marcados)
+        $role->syncPermissions($request->input('permissions', []));
+
+        return redirect()->back()->with('success', 'Permisos actualizados correctamente.');
+    }
+
+    // Toggle (attach/detach) individual permiso via AJAX (fetch)
+    public function togglePermission(Request $request, $id)
+    {
+        if (!Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'No autenticado'], 401);
+        }
+
+        $request->validate([
+            'permission' => 'required|string',
+            'checked' => 'required|boolean',
+        ]);
+
+        $role = Role::findOrFail($id);
+        $permName = $request->input('permission');
+
+        if ($request->boolean('checked')) {
+            if (! $role->hasPermissionTo($permName)) {
+                $role->givePermissionTo($permName);
+            }
+            $status = 'attached';
+        } else {
+            if ($role->hasPermissionTo($permName)) {
+                $role->revokePermissionTo($permName);
+            }
+            $status = 'detached';
+        }
+
+        return response()->json([
+            'ok' => true,
+            'status' => $status,
+            'role' => $role->name,
+            'permission' => $permName
+        ]);
+    }
+}
+
+~~~
+
+### 14) Agrupar rutas por medio de roles en el archivo de rutas, siguiendo el siguiente modelo a modo de guía:
+
+~~~
+Route::middleware(['auth', 'role:admin'])->group(function () {
+
+    // --- EJEMPLO RUTAS DE ROLES ---
+    Route::get('/backoffice/roles', [RolesController::class, 'index'])->name('backoffice.roles.index');
+    Route::post('/backoffice/roles', [RolesController::class, 'store'])->name('backoffice.roles.new');
+    Route::post('/backoffice/roles/down/{_id}', [RolesController::class, 'down'])->name('backoffice.roles.down');
+    Route::post('/backoffice/roles/up/{_id}', [RolesController::class, 'up'])->name('backoffice.roles.up');
+    Route::post('/backoffice/roles/destroy/{_id}', [RolesController::class, 'destroy'])->name('backoffice.roles.destroy');
+
+    // AGREGAR DEMASES RUTAS
+
+    // --- PERMISOS DE ROLES ---
+    Route::put('/backoffice/roles/{id}/permissions', [RolesController::class, 'updatePermissions'])
+        ->name('backoffice.roles.update.permissions');
+
+    Route::post('/backoffice/roles/{id}/permissions/toggle', [RolesController::class, 'togglePermission'])
+        ->name('backoffice.roles.toggle.permission');
+});
+~~~
