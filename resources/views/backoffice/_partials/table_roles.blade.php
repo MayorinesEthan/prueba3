@@ -4,14 +4,14 @@
             <th>ID</th>
             <th>Nombre</th>
             <th>Estado</th>
-            <th>Permisos</th> <!-- Columna de Permisos -->
-            <th>Acciones</th> <!-- Columna de Acciones -->
+            <th>Permisos</th>
+            <th>Acciones</th>
         </tr>
     </thead>
     <tbody>
         @if (count($lista) == 0)
             <tr>
-                <td colspan="5" class="text-center">Sin Registros</td> <!-- Se cambia el colspan a 5 -->
+                <td colspan="5" class="text-center">Sin Registros</td>
             </tr>
         @else
             @foreach ($lista as $item)
@@ -26,23 +26,39 @@
                         @endif
                     </td>
                     <td class="text-center">
-                        <!-- Botón de ver permisos -->
-                        <button class="btn btn-info" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ $item->id }}" aria-expanded="false" aria-controls="collapse{{ $item->id }}">
-                            Ver permisos
+                        <!-- Botón para abrir modal de detalles -->
+                        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#modalPermisos{{ $item->id }}">
+                            Ver detalles
                         </button>
-                        <div class="collapse" id="collapse{{ $item->id }}">
-                            <div class="p-3 mt-2 rounded border" style="background-color: #f8f9fa;">
-                                @if (count($item->permissions) > 0)
-                                    <div class="d-flex flex-wrap">
-                                        @foreach ($item->permissions as $permiso)
-                                            <span class="badge bg-primary text-white me-2 mb-2">
-                                                {{ $permiso->name }}
-                                            </span>
-                                        @endforeach
+
+                        <!-- Modal de permisos -->
+                        <div class="modal fade" id="modalPermisos{{ $item->id }}" tabindex="-1" aria-labelledby="modalLabel{{ $item->id }}" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-scrollable modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="modalLabel{{ $item->id }}">Permisos del rol: {{ $item->name }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                                     </div>
-                                @else
-                                    <span class="text-muted">Este rol no tiene permisos asignados.</span>
-                                @endif
+                                    <div class="modal-body">
+                                        @if (count($item->permissions) > 0)
+                                            <ul class="list-group list-group-flush text-start">
+                                                @foreach ($item->permissions as $permiso)
+                                                    <li class="list-group-item d-flex align-items-center">
+                                                        <input type="checkbox" class="form-check-input me-2" id="permiso{{ $permiso->id }}_{{ $item->id }}" checked disabled />
+                                                        <label for="permiso{{ $permiso->id }}_{{ $item->id }}" class="mb-0">
+                                                            {{ $permiso->name }}
+                                                        </label>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @else
+                                            <p class="text-muted">Este rol no tiene permisos asignados.</p>
+                                        @endif
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </td>

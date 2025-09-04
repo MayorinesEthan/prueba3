@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\RolesModel;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 
 class RolesController extends Controller
@@ -106,9 +107,14 @@ class RolesController extends Controller
     ]);
 
     // Crear un nuevo rol
+    $nuevo = Role::create([
+        'name' => $request->roles_nombre
+    ]);
+    /*
     $nuevo = RolesModel::create([
         'nombre' => $request->roles_nombre,
     ]);
+    */
 
     // Redirigir con mensaje de éxito
     return redirect()->back()->with('success', ':) Rol creado exitosamente.');

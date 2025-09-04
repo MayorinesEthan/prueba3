@@ -19,24 +19,22 @@
         <!-- Role Table -->
         <div class="card">
             <div class="card-datatable">
-                @component('backoffice._partials.table_roles', [
+                @include('backoffice._partials.table_roles', [
                     'lista' => $lista,
                     'datos' => $datos
                 ])
-                @endcomponent
             </div>
         </div>
         <!--/ Role Table -->
 
         <!-- Modal para agregar nuevo rol -->
-        @component('backoffice._partials.modal', [
+        @include('backoffice._partials.modal', [
             'titulo' => $datos['mantenedor']['titulo'],
             'instruccion' => $datos['mantenedor']['instruccion'],
             'accion' => 'new',
             'ruta' => $datos['mantenedor']['routes']['new'],
             'campos' => $datos['mantenedor']['fields'],
         ])
-        @endcomponent
         <!--/ Modal para agregar nuevo rol -->
 
     </div>
