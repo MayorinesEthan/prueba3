@@ -243,9 +243,7 @@ $rolAdmin = $role =  Role::firstOrCreate(['name' => 'admin']);
         $entrenadorUser->assignRole($rolEntrenador); // Asignar el rol entrenador al usuario entrenador
 ~~~
 
-### 6) Agregar el trait HasRoles en los modelos que usen el sistem de Roles y Permisos
-
-- Tanto en el modelo de roles y users
+### 6) Agregar el trait HasRoles en los Modelos de Roles y Users
 
 ~~~
 use Spatie\Permission\Traits\HasRoles;
@@ -253,7 +251,7 @@ use Spatie\Permission\Traits\HasRoles;
 use HasFactory, HasRoles;
 ~~~
 
-- Y en RolesModel agregar el siguiente método
+- Y en RolesModel agregar el siguiente método:
 ~~~
 public function permissions()
 {
@@ -261,18 +259,7 @@ public function permissions()
 }
 ~~~
 
-### 7)Modificar rolesController.
-
-- En vez de tener:  
-~~~
-$lista = RolesModel::all();
-~~~
- Se debe tener: 
- ~~~
-$lista = RolesModel::with('permissions')->get();
- ~~~
-
-### 8) Realizar migraciones.
+### 7) Realizar migraciones.
 - Primero por seguridad realizar:
 ~~~
 php artisan migrate:fresh
@@ -283,7 +270,7 @@ php artisan migrate:fresh
  php artisan migrate:fresh --seed
  ~~~
 
-### 9) Modificar la tabla roles creada por laravel permissions.
+### 8) Modificar la tabla roles creada por laravel permissions.
 
 - Buscar la tabla roles dentro del archivo y agregar lo siguiente despues del campo "guard_name":
 ~~~
@@ -292,20 +279,21 @@ $table->boolean('activo')->default(true);
 
 - Despues de esto se debe realizar nuevamente el paso 8.
 
-- ### 10) Agregar al inicio del archivo de Rutas los siguientes middlewares propios de Permission
- ~~~
+- ### 9) Agregar al inicio del archivo de Rutas los siguientes middlewares propios de Permission
+
+Se importa lo siguiente:
+~~~
+use Spatie\Permission\Middleware\RoleMiddleware;
+use Spatie\Permission\Middleware\PermissionMiddleware;
+~~~
+
+Y se agrega al principio de las rutas; 
+~~~
 Route::aliasMiddleware('role', RoleMiddleware::class);
 Route::aliasMiddleware('permission', PermissionMiddleware::class);
  ~~~
 
-Y se importa lo siguiente:
- ~~~
-use Spatie\Permission\Middleware\RoleMiddleware;
-use Spatie\Permission\Middleware\PermissionMiddleware;
- ~~~
-
-
-- ### 11) Crearemos una vista para la tabla de permisos y pegamos el siguiente codigo 
+- ### 10) Crearemos una vista para la tabla de permisos y pegamos el siguiente codigo 
 ~~~
 php artisan make:view backoffice/_partials/table_roles
 ~~~
@@ -430,7 +418,7 @@ php artisan make:view backoffice/_partials/table_roles
 
 ~~~
 
-### 12) Modificamos el contenido de la vista backoffice/roles/index, eliminando el codigo y pegando el siguiente:
+### 11) Modificamos el contenido de la vista backoffice/roles/index, eliminando el codigo y pegando el siguiente:
 
 ~~~
 @extends('backoffice._partials.app')
@@ -478,7 +466,7 @@ php artisan make:view backoffice/_partials/table_roles
 
 ~~~
 
-### 13) Modificar de forma completa el RolesController por el código siguiente:
+### 12) Modificar de forma completa el RolesController, pegando el siguiente código:
 
 ~~~
 <?php
@@ -715,8 +703,63 @@ class RolesController extends Controller
 
 ~~~
 
-### 14) Agrupar rutas por medio de roles en el archivo de rutas, siguiendo el siguiente modelo a modo de guía:
+### 13) Aplicar sistema de Roles/Permisos en las Vistas o Controladores según se requiera
 
+- Para aplicar Roles en las vistas Blade usar lo siguiente dependiendo de Rol:
+~~~
+@if(auth()->user()->hasRole('admin')) 
+
+@endif
+~~~
+
+~~~
+@if(auth()->user()->hasAnyRole(['admin', 'entrenador']))
+
+@endif
+~~~
+
+
+- Para designar un tipo de permiso a un metodo del Controlador, usar lo siguiente:
+
+Alternativa 1: Más flexible, pero más “manual” (no lanza 403 automáticamente a menos que lo programes), ya que se decide manualmente qué hacer si falla
+~~~
+public function create()
+{
+    if (!auth()->user()->can('crear cargos')) {
+        return redirect()->back()->withErrors('No tiene permiso para crear cargos.');
+    }
+}
+~~~
+
+Alternativa 2: Es la opción recomendada cuando cada acción tiene permisos claros y fijos.
+~~~
+class CargosController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(['auth', 'permission:ver cargos'])->only('index');
+        $this->middleware(['auth', 'permission:crear cargos'])->only('store');
+        $this->middleware(['auth', 'permission:eliminar cargos'])->only('destroy');
+        $this->middleware(['auth', 'permission:activar cargos'])->only('up');
+        $this->middleware(['auth', 'permission:desactivar cargos'])->only('down');
+    }
+}
+~~~
+
+
+- Para aplicar validaciones de Permisos en los Controladores, usar lo siguiente:
+~~~
+if (auth()->user()->can('user-create')) {
+
+} elseif (auth()->user()->can('user-list')) {
+            
+} else {
+    // no tiene permisos para x cosa
+    abort(403, 'No tienes permisos para ver x cosa.....');
+}
+~~~
+
+### 14) OPCIONAL: Agrupar rutas por medio de roles en el archivo de rutas, siguiendo el siguiente modelo como guía:
 ~~~
 Route::middleware(['auth', 'role:admin'])->group(function () {
 
@@ -741,67 +784,4 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     // AGREGAR DEMASES RUTAS
 });
-~~~
-
-### 15) Aplicar sistema de Roles/Permisos en las Vistas o Controladores según se requiera
-
-- Para aplicar Roles en las vistas blade usar lo siguiente dependiendo de Rol:
-~~~
-{{-- Con este if hacemos que se vea solo si tiene el rol admin --}}
-
-@if(auth()->user()->hasRole('admin')) 
-
-@endif
-~~~
-~~~
-{{-- Con esto se permite que dos o mas roles, en este caso admin y entrenador vean a los usuarios --}}
-
-@if(auth()->user()->hasAnyRole(['admin', 'entrenador']))
-~~~
-
-- Para designar un tipo de permiso a un metodo del Controlador, usar lo siguiente:
-
-Alternativa 1: 
-~~~
-public function create()
-{
-    $this->authorize('user-create'); // lanza 403 si no tiene el permiso
-}
-~~~
-
-Alternativa 2:
-~~~
-public function create()
-{
-    if (!auth()->user()->can('crear cargos')) {
-        return redirect()->back()->withErrors('No tiene permiso para crear cargos.');
-    }
-}
-~~~
-
-Alternativa 3:
-~~~
-class CargosController extends Controller
-{
-    public function __construct()
-    {
-        $this->middleware(['auth', 'permission:ver cargos'])->only('index');
-        $this->middleware(['auth', 'permission:crear cargos'])->only('store');
-        $this->middleware(['auth', 'permission:eliminar cargos'])->only('destroy');
-        $this->middleware(['auth', 'permission:activar cargos'])->only('up');
-        $this->middleware(['auth', 'permission:desactivar cargos'])->only('down');
-    }
-}
-~~~
-
-- Para aplicar validaciones de Permisos en los Controladores, usar lo siguiente:
-~~~
-if (auth()->user()->can('user-create')) {
-
-} elseif (auth()->user()->can('user-list')) {
-            
-} else {
-    // no tiene permisos para x cosa
-    abort(403, 'No tienes permisos para ver x cosa.....');
-}
 ~~~
