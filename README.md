@@ -759,11 +759,38 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 @if(auth()->user()->hasAnyRole(['admin', 'entrenador']))
 ~~~
 
-- Para designar un tipo de permiso a un metodo de un Controlador, usar lo siguiente:
+- Para designar un tipo de permiso a un metodo del Controlador, usar lo siguiente:
+
+Alternativa 1: 
 ~~~
 public function create()
 {
-    $this->authorize('user-create');
+    $this->authorize('user-create'); // lanza 403 si no tiene el permiso
+}
+~~~
+
+Alternativa 2:
+~~~
+public function create()
+{
+    if (!auth()->user()->can('crear cargos')) {
+        return redirect()->back()->withErrors('No tiene permiso para crear cargos.');
+    }
+}
+~~~
+
+Alternativa 3:
+~~~
+class CargosController extends Controller
+{
+    public function __construct()
+    {
+        $this->middleware(['auth', 'permission:ver cargos'])->only('index');
+        $this->middleware(['auth', 'permission:crear cargos'])->only('store');
+        $this->middleware(['auth', 'permission:eliminar cargos'])->only('destroy');
+        $this->middleware(['auth', 'permission:activar cargos'])->only('up');
+        $this->middleware(['auth', 'permission:desactivar cargos'])->only('down');
+    }
 }
 ~~~
 
