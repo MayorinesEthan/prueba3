@@ -245,13 +245,17 @@ $rolAdmin = $role =  Role::firstOrCreate(['name' => 'admin']);
 
 ### 6) Agregar el trait HasRoles en los Modelos de Roles y Users
 
+- Importar: 
 ~~~
 use Spatie\Permission\Traits\HasRoles;
+~~~
 
+- Agregar el trait de HasRoles luego del HasFactory:
+~~~
 use HasFactory, HasRoles;
 ~~~
 
-- Y en RolesModel agregar el siguiente método:
+- Y en RolesModel agregar el siguiente método al final:
 ~~~
 public function permissions()
 {
