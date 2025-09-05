@@ -255,7 +255,13 @@ use Spatie\Permission\Traits\HasRoles;
 use HasFactory, HasRoles;
 ~~~
 
-- Y en RolesModel agregar el siguiente método al final:
+- Y en RolesModel agregar el siguiente método:
+
+Primero importar lo siguiente:
+~~~
+use Spatie\Permission\Models\Permission;
+~~~
+
 ~~~
 public function permissions()
 {
