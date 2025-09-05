@@ -720,21 +720,26 @@ class RolesController extends Controller
 ~~~
 Route::middleware(['auth', 'role:admin'])->group(function () {
 
-    // --- EJEMPLO RUTAS DE ROLES ---
+    // CARGOS
+    Route::get('/backoffice/cargos', [CargosController::class, 'index'])->name('backoffice.cargos.index');
+    Route::post('/backoffice/cargos', [CargosController::class, 'store'])->name('backoffice.cargos.new');
+    Route::post('/backoffice/cargos/down/{_id}', [CargosController::class, 'down'])->name('backoffice.cargos.down');
+    Route::post('/backoffice/cargos/up/{_id}', [CargosController::class, 'up'])->name('backoffice.cargos.up');
+    Route::post('/backoffice/cargos/destroy/{_id}', [CargosController::class, 'destroy'])->name('backoffice.cargos.destroy');
+
+    // ROLES
     Route::get('/backoffice/roles', [RolesController::class, 'index'])->name('backoffice.roles.index');
     Route::post('/backoffice/roles', [RolesController::class, 'store'])->name('backoffice.roles.new');
     Route::post('/backoffice/roles/down/{_id}', [RolesController::class, 'down'])->name('backoffice.roles.down');
     Route::post('/backoffice/roles/up/{_id}', [RolesController::class, 'up'])->name('backoffice.roles.up');
     Route::post('/backoffice/roles/destroy/{_id}', [RolesController::class, 'destroy'])->name('backoffice.roles.destroy');
 
-    // AGREGAR DEMASES RUTAS
-
-    // --- PERMISOS DE ROLES ---
     Route::put('/backoffice/roles/{id}/permissions', [RolesController::class, 'updatePermissions'])
         ->name('backoffice.roles.update.permissions');
-
     Route::post('/backoffice/roles/{id}/permissions/toggle', [RolesController::class, 'togglePermission'])
         ->name('backoffice.roles.toggle.permission');
+
+    // AGREGAR DEMASES RUTAS
 });
 ~~~
 
