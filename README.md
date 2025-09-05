@@ -725,7 +725,7 @@ Alternativa 1: Más flexible, pero más “manual” (no lanza 403 automáticame
 ~~~
 public function create()
 {
-    if (!auth()->user()->can('crear cargos')) {
+    if (!auth()->user()->can('cargos-create')) {
         return redirect()->back()->withErrors('No tiene permiso para crear cargos.');
     }
 }
@@ -737,11 +737,11 @@ class CargosController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['auth', 'permission:ver cargos'])->only('index');
-        $this->middleware(['auth', 'permission:crear cargos'])->only('store');
-        $this->middleware(['auth', 'permission:eliminar cargos'])->only('destroy');
-        $this->middleware(['auth', 'permission:activar cargos'])->only('up');
-        $this->middleware(['auth', 'permission:desactivar cargos'])->only('down');
+        $this->middleware(['auth', 'permission:cargos-list'])->only('index');
+        $this->middleware(['auth', 'permission:cargos-create'])->only('store');
+        $this->middleware(['auth', 'permission:cargos-destroy'])->only('destroy');
+        $this->middleware(['auth', 'permission:cargos-up'])->only('up');
+        $this->middleware(['auth', 'permission:cargos-down'])->only('down');
     }
 }
 ~~~
