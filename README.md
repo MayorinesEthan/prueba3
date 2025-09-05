@@ -749,13 +749,20 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 @endif
 ~~~
 ~~~
-{{-- Con esto se permite que los roles admin y entrenador vean a los usuarios --}}
+{{-- Con esto se permite que dos o mas roles, en este caso admin y entrenador vean a los usuarios --}}
 
 @if(auth()->user()->hasAnyRole(['admin', 'entrenador']))
 ~~~
 
+- Para designar un tipo de permiso a un metodo de un Controlador, usar lo siguiente:
+~~~
+public function create()
+{
+    $this->authorize('user-create');
+}
+~~~
 
-- Para aplicar Permisos en los Controladores, usar lo siguiente dependiendo del Rol:
+- Para aplicar validaciones de Permisos en los Controladores, usar lo siguiente:
 ~~~
 if (auth()->user()->can('user-create')) {
 
@@ -766,12 +773,3 @@ if (auth()->user()->can('user-create')) {
     abort(403, 'No tienes permisos para ver x cosa.....');
 }
 ~~~
-
-- Para designar un tipo de permiso a un metodo de un Controlador, usar lo siguiente:
-~~~
-public function create()
-{
-    $this->authorize('user-create');
-}
-~~~
-- 
