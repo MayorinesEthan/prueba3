@@ -737,3 +737,41 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         ->name('backoffice.roles.toggle.permission');
 });
 ~~~
+
+### 15) Aplicar sistema de Roles/Permisos en las Vistas o Controladores según se requiera
+
+- Para aplicar Roles en las vistas blade usar lo siguiente dependiendo de Rol:
+~~~
+{{-- Con este if hacemos que se vea solo si tiene el rol admin --}}
+
+@if(auth()->user()->hasRole('admin')) 
+
+@endif
+~~~
+~~~
+{{-- Con esto se permite que los roles admin y entrenador vean a los usuarios --}}
+
+@if(auth()->user()->hasAnyRole(['admin', 'entrenador']))
+~~~
+
+
+- Para aplicar Permisos en los Controladores, usar lo siguiente dependiendo del Rol:
+~~~
+if (auth()->user()->can('user-create')) {
+
+} elseif (auth()->user()->can('user-list')) {
+            
+} else {
+    // no tiene permisos para x cosa
+    abort(403, 'No tienes permisos para ver x cosa.....');
+}
+~~~
+
+- Para designar un tipo de permiso a un metodo de un Controlador, usar lo siguiente:
+~~~
+public function create()
+{
+    $this->authorize('user-create');
+}
+~~~
+- 
