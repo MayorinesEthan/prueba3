@@ -303,7 +303,7 @@ Route::aliasMiddleware('role', RoleMiddleware::class);
 Route::aliasMiddleware('permission', PermissionMiddleware::class);
  ~~~
 
-- ### 10) Crearemos una vista para la tabla de permisos y pegamos el siguiente codigo 
+- ### 10) Crearemos una Vista para la tabla de roles y pegamos el siguiente codigo 
 ~~~
 php artisan make:view backoffice/_partials/table_roles
 ~~~
