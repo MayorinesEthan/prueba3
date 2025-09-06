@@ -642,6 +642,7 @@ php artisan make:view backoffice/_partials/table_roles
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Models\RolesModel;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
@@ -659,10 +660,12 @@ class RolesController extends Controller
         }
 
         $user = Auth::user();
+        $user->load('roles'); // ✅ roles cargados
 
         //$lista = RolesModel::all();
         $lista = RolesModel::with('permissions')->get();
         $permisos = Permission::all(); // ✅ todos los permisos
+        $roles = Role::all();
 
         $datos = [
             'textos' => [
@@ -728,41 +731,42 @@ class RolesController extends Controller
                 'logo' => 'https://ipss.cl/wp-content/uploads/2025/04/cropped-LogoIPSS_sello50anos_webipss.png'
             ]
         ];
-        
+
         return view('backoffice/roles/index', [
             'datos' => $datos,
             'user' => $user,
             'lista' => $lista,
-            'permisos' => $permisos
+            'permisos' => $permisos,
+            'roles' => $roles
         ]);
     }
 
     public function store(Request $request)
-{
-    if (!Auth::check()) {
-        return redirect()->route('/')->withErrors('Debe iniciar sesión.');
-    }
+    {
+        if (!Auth::check()) {
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
 
-    $user = Auth::user();
+        $user = Auth::user();
 
-    // Validación de los campos
-    $request->validate([
-        'roles_nombre' => ['required', 'string', 'max:50', 'min:3'],
-    ]);
+        // Validación de los campos
+        $request->validate([
+            'roles_nombre' => ['required', 'string', 'max:50', 'min:3'],
+        ]);
 
-    // Crear un nuevo rol
-    $nuevo = Role::create([
-        'name' => $request->roles_nombre
-    ]);
-    /*
+        // Crear un nuevo rol
+        $nuevo = Role::create([
+            'name' => $request->roles_nombre
+        ]);
+        /*
     $nuevo = RolesModel::create([
         'nombre' => $request->roles_nombre,
     ]);
     */
 
-    // Redirigir con mensaje de éxito
-    return redirect()->back()->with('success', ':) Rol creado exitosamente.');
-}
+        // Redirigir con mensaje de éxito
+        return redirect()->back()->with('success', ':) Rol creado exitosamente.');
+    }
 
     public function down(Request $request, $_id)
     {
@@ -781,7 +785,7 @@ class RolesController extends Controller
         }
         return redirect()->back()->withErrors('No se realizaron Cambios.');
     }
-    
+
     public function up(Request $request, $_id)
     {
         if (!Auth::check()) {
@@ -819,18 +823,18 @@ class RolesController extends Controller
         if (!Auth::check()) {
             return redirect()->route('/')->withErrors('Debe iniciar sesión.');
         }
-    
+
         $request->validate([
             'permissions' => 'nullable|array',
             'permissions.*' => 'string',
             'modo' => 'required|string|in:agregar,editar',
         ]);
-    
+
         $role = Role::findOrFail($id);
-    
+
         $permisos = $request->input('permissions', []);
         $modo = $request->input('modo');
-    
+
         if ($modo === 'agregar') {
             // Agregar permisos sin eliminar los existentes
             $role->givePermissionTo($permisos);
@@ -838,10 +842,10 @@ class RolesController extends Controller
             // Reemplazar permisos
             $role->syncPermissions($permisos);
         }
-    
+
         return redirect()->back()->with('success', 'Permisos actualizados correctamente.');
     }
-    
+
 
     // Toggle (attach/detach) individual permiso via AJAX (fetch)
     public function togglePermission(Request $request, $id)
@@ -877,8 +881,39 @@ class RolesController extends Controller
             'permission' => $permName
         ]);
     }
-}
 
+    // METODO A FUTURO IMPLEMENTAR
+    public function changeRole(Request $request)
+    {
+        if (!Auth::check()) {
+            return redirect()->route('/')->withErrors('Debe iniciar sesión.');
+        }
+
+        // ✅ Validar que tenga el permiso adecuado
+        if (!auth()->user()->can('rol-edit')) {
+            return redirect()->back()->withErrors('No tiene permiso para cambiar roles.');
+        }
+
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'role_id' => 'required|exists:roles,id',
+        ]);
+
+        $userAuth = Auth::user(); // Usuario autenticado
+        $user = User::findOrFail($request->user_id);
+        $role = Role::findOrFail($request->role_id);
+
+        // ✅ Caso 1: el admin cambia su propio rol
+        if ($user->id === $userAuth->id) {
+            $userAuth->syncRoles([$role->name]);
+            return redirect()->back()->with('success', "Te has cambiado al rol: {$role->name}");
+        }
+
+        // ✅ Caso 2: el admin cambia el rol de otro usuario
+        $user->syncRoles([$role->name]);
+        return redirect()->back()->with('success', "El usuario {$user->name} ahora tiene el rol: {$role->name}");
+    }
+}
 ~~~
 
 ### 13) Aplicar sistema de Roles/Permisos en las Vistas o Controladores según se requiera
