@@ -326,6 +326,33 @@ php artisan make:view backoffice/_partials/table_roles
             </tr>
         @else
             @foreach ($lista as $item)
+                @php
+                    // Agrupar permisos activos por categoría (antes del primer guion '-')
+                    $permisosAgrupados = [];
+                    foreach ($item->permissions as $permiso) {
+                        $categoria = explode('-', $permiso->name)[0];
+                        if (!isset($permisosAgrupados[$categoria])) {
+                            $permisosAgrupados[$categoria] = [];
+                        }
+                        $permisosAgrupados[$categoria][] = $permiso;
+                    }
+
+                    // Permisos inactivos (los que no tiene el rol)
+                    $permisosInactivos = $permisos->diff($item->permissions);
+
+                    // Agrupar permisos inactivos por categoría
+                    $permisosInactivosAgrupados = [];
+                    foreach ($permisosInactivos as $permiso) {
+                        $categoria = explode('-', $permiso->name)[0];
+                        if (!isset($permisosInactivosAgrupados[$categoria])) {
+                            $permisosInactivosAgrupados[$categoria] = [];
+                        }
+                        $permisosInactivosAgrupados[$categoria][] = $permiso;
+                    }
+
+                    // Para editar: permisos activos agrupados, que serán los mismos $permisosAgrupados
+                @endphp
+
                 <tr>
                     <td class="text-center">{{ $item->id }}</td>
                     <td class="text-center">{{ $item->name }}</td>
@@ -337,69 +364,202 @@ php artisan make:view backoffice/_partials/table_roles
                         @endif
                     </td>
                     <td class="text-center">
-                        <!-- Botón para abrir modal de detalles -->
                         <button type="button" class="btn btn-info" data-bs-toggle="modal"
                             data-bs-target="#modalPermisos{{ $item->id }}">
-                            Editar Permisos
+                            Permisos
                         </button>
 
-                        <!-- Modal de permisos -->
+                        <!-- Modal -->
                         <div class="modal fade" id="modalPermisos{{ $item->id }}" tabindex="-1"
                             aria-labelledby="modalLabel{{ $item->id }}" aria-hidden="true">
                             <div class="modal-dialog modal-lg">
                                 <div class="modal-content">
 
                                     <!-- Header -->
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="modalLabel{{ $item->id }}">
-                                            Permisos del rol: {{ $item->name }}
+                                    <div class="modal-header text-center">
+                                        <h5 class="modal-title w-100" id="modalLabel{{ $item->id }}">
+                                            <strong>{{ $item->name }}</strong>
                                         </h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Cerrar"></button>
+                                            aria-label="Close"></button>
                                     </div>
 
-                                    <!-- Form -->
-                                    <form action="{{ route($datos['mantenedor']['routes']['permissions'], $item->id) }}"
-                                        method="POST">
-                                        @csrf
-                                        @method('PUT')
+                                    <!-- Body -->
+                                    <div class="modal-body">
 
-                                        <!-- Body con scroll -->
-                                        <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
-                                            <div class="row">
-                                                @foreach ($permisos as $permiso)
-                                                    <div class="col-md-4 mb-2">
-                                                        <div class="form-check">
-                                                            <input type="checkbox" class="form-check-input"
-                                                                name="permissions[]" value="{{ $permiso->name }}"
-                                                                id="permiso{{ $permiso->id }}_{{ $item->id }}"
-                                                                @if ($item->permissions->contains('id', $permiso->id)) checked @endif />
-                                                            <label class="form-check-label"
-                                                                for="permiso{{ $permiso->id }}_{{ $item->id }}">
-                                                                {{ $permiso->name }}
-                                                            </label>
-                                                        </div>
+                                        <div class="accordion" id="accordionPermisos{{ $item->id }}">
+
+                                            <!-- Ver permisos -->
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingVer{{ $item->id }}">
+                                                    <button class="accordion-button collapsed" type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#verPermisos{{ $item->id }}"
+                                                        aria-expanded="false"
+                                                        aria-controls="verPermisos{{ $item->id }}">
+                                                        Ver permisos activos
+                                                    </button>
+                                                </h2>
+                                                <div id="verPermisos{{ $item->id }}" class="accordion-collapse collapse"
+                                                    aria-labelledby="headingVer{{ $item->id }}"
+                                                    data-bs-parent="#accordionPermisos{{ $item->id }}">
+                                                    <div class="accordion-body">
+                                                        @if ($item->permissions->isEmpty())
+                                                            <p class="text-muted">Este rol no tiene permisos asignados.</p>
+                                                        @else
+                                                            @foreach ($permisosAgrupados as $categoria => $permisosPorCategoria)
+                                                                <div class="mb-3 p-3 rounded border border-secondary">
+                                                                    <h6 class="fw-bold">{{ ucfirst($categoria) }}</h6>
+                                                                    <ul class="list-group">
+                                                                        @foreach ($permisosPorCategoria as $permiso)
+                                                                            <li class="list-group-item">{{ $permiso->name }}</li>
+                                                                        @endforeach
+                                                                    </ul>
+                                                                </div>
+                                                            @endforeach
+                                                        @endif
                                                     </div>
-                                                @endforeach
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        <!-- Footer fijo -->
-                                        <div class="modal-footer"
-                                            style="position: sticky; bottom: 0; background: white; z-index: 1000;">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Cerrar</button>
-                                            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+                                            <!-- Agregar permisos -->
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingAgregar{{ $item->id }}">
+                                                    <button class="accordion-button collapsed" type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#agregarPermisos{{ $item->id }}"
+                                                        aria-expanded="false"
+                                                        aria-controls="agregarPermisos{{ $item->id }}">
+                                                        Agregar nuevos permisos
+                                                    </button>
+                                                </h2>
+                                                <div id="agregarPermisos{{ $item->id }}" class="accordion-collapse collapse"
+                                                    aria-labelledby="headingAgregar{{ $item->id }}"
+                                                    data-bs-parent="#accordionPermisos{{ $item->id }}">
+                                                    <div class="accordion-body">
+                                                        <form
+                                                            action="{{ route($datos['mantenedor']['routes']['permissions'], $item->id) }}"
+                                                            method="POST">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <input type="hidden" name="modo" value="agregar">
+
+                                                            @if (empty($permisosInactivosAgrupados))
+                                                                <p class="text-muted">Este rol ya tiene todos los permisos asignados.</p>
+                                                            @else
+                                                                @foreach ($permisosInactivosAgrupados as $categoria => $permisosPorCategoria)
+                                                                    <div class="mb-3 p-3 rounded border border-secondary">
+                                                                        <h6 class="fw-bold">{{ ucfirst($categoria) }}</h6>
+                                                                        <table class="table table-bordered mb-0">
+                                                                            <thead class="table-light">
+                                                                                <tr>
+                                                                                    <th>Permiso</th>
+                                                                                    <th class="text-center">Agregar</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                @foreach ($permisosPorCategoria as $permiso)
+                                                                                    <tr>
+                                                                                        <td>{{ $permiso->name }}</td>
+                                                                                        <td class="text-center">
+                                                                                            <input type="checkbox"
+                                                                                                name="permissions[]"
+                                                                                                value="{{ $permiso->name }}">
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                @endforeach
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                @endforeach
+                                                                <div class="d-flex justify-content-end">
+                                                                    <button type="submit" class="btn btn-primary">
+                                                                        Guardar Nuevos
+                                                                    </button>
+                                                                </div>
+                                                            @endif
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Editar permisos -->
+                                            <div class="accordion-item">
+                                                <h2 class="accordion-header" id="headingEditar{{ $item->id }}">
+                                                    <button class="accordion-button collapsed" type="button"
+                                                        data-bs-toggle="collapse"
+                                                        data-bs-target="#editarPermisos{{ $item->id }}"
+                                                        aria-expanded="false"
+                                                        aria-controls="editarPermisos{{ $item->id }}">
+                                                        Editar permisos activos
+                                                    </button>
+                                                </h2>
+                                                <div id="editarPermisos{{ $item->id }}" class="accordion-collapse collapse"
+                                                    aria-labelledby="headingEditar{{ $item->id }}"
+                                                    data-bs-parent="#accordionPermisos{{ $item->id }}">
+                                                    <div class="accordion-body">
+                                                        <form
+                                                            action="{{ route($datos['mantenedor']['routes']['permissions'], $item->id) }}"
+                                                            method="POST">
+                                                            @csrf
+                                                            @method('PUT')
+                                                            <input type="hidden" name="modo" value="editar">
+
+                                                            @if ($item->permissions->isEmpty())
+                                                                <p class="text-muted">Este rol no tiene permisos para editar.</p>
+                                                            @else
+                                                                @foreach ($permisosAgrupados as $categoria => $permisosPorCategoria)
+                                                                    <div class="mb-3 p-3 rounded border border-secondary">
+                                                                        <h6 class="fw-bold">{{ ucfirst($categoria) }}</h6>
+                                                                        <table class="table table-bordered mb-0">
+                                                                            <thead class="table-light">
+                                                                                <tr>
+                                                                                    <th>Permiso</th>
+                                                                                    <th class="text-center">Activo</th>
+                                                                                </tr>
+                                                                            </thead>
+                                                                            <tbody>
+                                                                                @foreach ($permisosPorCategoria as $permiso)
+                                                                                    <tr>
+                                                                                        <td>{{ $permiso->name }}</td>
+                                                                                        <td class="text-center">
+                                                                                            <input type="checkbox"
+                                                                                                name="permissions[]"
+                                                                                                value="{{ $permiso->name }}"
+                                                                                                checked>
+                                                                                        </td>
+                                                                                    </tr>
+                                                                                @endforeach
+                                                                            </tbody>
+                                                                        </table>
+                                                                    </div>
+                                                                @endforeach
+                                                                <div class="d-flex justify-content-end">
+                                                                    <button type="submit" class="btn btn-warning">
+                                                                        Guardar Cambios
+                                                                    </button>
+                                                                </div>
+                                                            @endif
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+
                                         </div>
-                                    </form>
+                                    </div>
+
+                                    <!-- Footer -->
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            Cerrar
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-
                     </td>
                     <td class="text-center">
                         @if ($item->activo == 1)
-                            <!-- Botón de Desactivar -->
                             <form action="{{ route($datos['mantenedor']['routes']['down'], $item->id) }}"
                                 method="POST" class="d-inline-block">
                                 @csrf
@@ -409,9 +569,8 @@ php artisan make:view backoffice/_partials/table_roles
                                 </button>
                             </form>
                         @else
-                            <!-- Botón de Activar -->
-                            <form action="{{ route($datos['mantenedor']['routes']['up'], $item->id) }}" method="POST"
-                                class="d-inline-block">
+                            <form action="{{ route($datos['mantenedor']['routes']['up'], $item->id) }}"
+                                method="POST" class="d-inline-block">
                                 @csrf
                                 <button type="submit" class="btn btn-primary"
                                     onclick="this.disabled=true; this.innerHTML='<i class=\'icon-base ti tabler-loader\'></i> Procesando...'; setTimeout(() => this.form.submit(), 500);">
@@ -655,25 +814,34 @@ class RolesController extends Controller
         return redirect()->back()->with('success', ':) Rol eliminado exitosamente.');
     }
 
-    // Sincroniza todos los permisos (botón "Guardar cambios")
     public function updatePermissions(Request $request, $id)
     {
         if (!Auth::check()) {
             return redirect()->route('/')->withErrors('Debe iniciar sesión.');
         }
-
+    
         $request->validate([
             'permissions' => 'nullable|array',
-            'permissions.*' => 'string'
+            'permissions.*' => 'string',
+            'modo' => 'required|string|in:agregar,editar',
         ]);
-
+    
         $role = Role::findOrFail($id);
-
-        // sincroniza (quita los no marcados y agrega los marcados)
-        $role->syncPermissions($request->input('permissions', []));
-
+    
+        $permisos = $request->input('permissions', []);
+        $modo = $request->input('modo');
+    
+        if ($modo === 'agregar') {
+            // Agregar permisos sin eliminar los existentes
+            $role->givePermissionTo($permisos);
+        } elseif ($modo === 'editar') {
+            // Reemplazar permisos
+            $role->syncPermissions($permisos);
+        }
+    
         return redirect()->back()->with('success', 'Permisos actualizados correctamente.');
     }
+    
 
     // Toggle (attach/detach) individual permiso via AJAX (fetch)
     public function togglePermission(Request $request, $id)
