@@ -918,7 +918,7 @@ class RolesController extends Controller
 
 ### 13) Aplicar sistema de Roles/Permisos en las Vistas o Controladores según se requiera
 
-- Para aplicar Roles en las vistas Blade usar lo siguiente dependiendo de Rol:
+- Para aplicar Roles en las vistas Blade usar lo siguiente dependiendo de Rol o de los Roles que se requieran:
 ~~~
 @if(auth()->user()->hasRole('admin')) 
 
@@ -939,7 +939,7 @@ Alternativa 1: Más flexible, pero más “manual” (no lanza 403 automáticame
 public function create()
 {
     if (!auth()->user()->can('cargos-create')) {
-        return redirect()->back()->withErrors('No tiene permiso para crear cargos.');
+        return redirect()->back()->withErrors('No tiene permiso para crear cargos.'); // o la alternativa es abort(403, 'No tienes permisos para ver x cosa.....');
     }
 }
 ~~~
@@ -959,17 +959,90 @@ class CargosController extends Controller
 }
 ~~~
 
+### RECOMENDACIONES ADICIONALES:
 
-- Para aplicar validaciones de Permisos en los Controladores, usar lo siguiente:
+- En el metodo index del UserController, remplazar las siguientes líneas de código:
 ~~~
-if (auth()->user()->can('user-create')) {
+$user = Auth::user();
+$lista = User::all();
+~~~
 
-} elseif (auth()->user()->can('user-list')) {
-            
-} else {
-    // no tiene permisos para x cosa
-    abort(403, 'No tienes permisos para ver x cosa.....');
+Por las siguientes:
+~~~
+$user = Auth::user();
+$lista = User::with('roles', 'permissions')->get();
+$roles = Role::all();
+
+Importando el use Spatie\Permission\Models\Role;
+~~~
+
+- En el fields de ese método index, agregar al final 'has_roles' => true, antes del corchete de 'dev', y en el return view agregar 'roles' => $roles, asi debe quedar:
+~~~
+              ],
+              'has_roles' => true, // Se agrega para pasarle el rol que tiene el usuario a la vista
+            ],
+            'dev' => [
+                'nombre' => 'Instituto Profesional San Sebastián',
+                'url' => 'https://www.ipss.cl',
+                'logo' => 'https://ipss.cl/wp-content/uploads/2025/04/cropped-LogoIPSS_sello50anos_webipss.png'
+            ]
+        ];
+        return view('backoffice/users/index', [
+            'datos' => $datos,
+            'user' => $user,
+            'lista' => $lista,
+            'roles' => $roles
+        ]);
+~~~
+
+- En el método guardarNuevo del UserController, luego del bloque de $user = User::create([]), antes del redirect, agregar el siguiente código:
+~~~
+$rolJugador = Role::where('name', 'jugador')->first();
+
+if ($rolJugador) {
+    $user->assignRole($rolJugador);
 }
+~~~
+
+
+- En el método store del UserController, luego de todo el bloque de $nuevo = User::create([], agregar el siguiente código antes del redirect:
+~~~
+// Asignar el rol, en base al cargo elegido en el formulario de creacion de usuario
+        // Buscar el cargo elegido
+        $cargo = CargosModel::find($request->cargoId);
+
+        if ($cargo) {
+            $rolName = strtolower($cargo->nombre);
+            $rol = Role::where('name', $rolName)->first();
+
+            if ($rol) {
+                $nuevo->assignRole($rol); // asigna rol según cargo
+            } else {
+                // Si no existe rol según cargo, asigna "jugador" por defecto
+                $rolJugador = Role::where('name', 'jugador')->first();
+                if ($rolJugador) {
+                    $nuevo->assignRole($rolJugador);
+                }
+            }
+        }
+~~~
+
+- En la migración de users, hacer ->nullable() los campos fechaNacimiento, generoId y CargoId
+
+- En el resources/views/backoffice/_partials/table.blade.php, editar el:
+~~~
+<td class="text-center">{{ $item->nombre }}</td>
+~~~
+
+Por:
+~~~
+<td class="text-center">
+    @if ($item->nombre)
+        {{ $item->nombre }}
+    @else
+        {{ $item->name }}
+    @endif
+</td>
 ~~~
 
 ### 14) OPCIONAL: Agrupar rutas por medio de roles en el archivo de rutas, siguiendo el siguiente modelo como guía:
