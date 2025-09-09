@@ -51,9 +51,9 @@ use Spatie\Permission\Models\Permission;
 - A continuacion al final del archivo pegamos el siguiente codigo:
 
 ~~~
-$rolAdmin = $role =  Role::firstOrCreate(['name' => 'admin']);
-        $rolJugador = $role =  Role::firstOrCreate(['name' => 'jugador']);
-        $rolEntrenador = $role =  Role::firstOrCreate(['name' => 'entrenador']);
+$rolAdmin = Role::firstOrCreate(['name' => 'admin']);
+        $rolJugador = Role::firstOrCreate(['name' => 'jugador']);
+        $rolEntrenador = Role::firstOrCreate(['name' => 'entrenador']);
 
         $adminPermissions = [
             'user-list',
@@ -193,9 +193,8 @@ $rolAdmin = $role =  Role::firstOrCreate(['name' => 'admin']);
 
         // Crear usuarios de prueba
         $adminUser = User::firstOrCreate(
-            ['rut' => '19704556-6'],
+            ['rut' => '12345678-9'],
             [
-                'rut' => '12345678-9',
                 'name' => 'Sebastián',
                 'lastname' => 'Cabezas',
                 'password' => Hash::make('holaMundo'),
