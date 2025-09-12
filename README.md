@@ -1102,3 +1102,246 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // AGREGAR DEMASES RUTAS
 });
 ~~~
+
+# EXAMEN
+
+### 1) Instalar JWT
+~~~
+composer require tymon/jwt-auth
+php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"
+php artisan jwt:secret
+~~~
+
+### 2) En config/auth.php comprueba/añade el guard api así (manteniendo web como default para tus vistas):
+~~~
+'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+
+        'api' => [
+            'driver' => 'jwt',
+            'provider' => 'users',
+        ],
+    ],
+~~~
+
+### 3) Cambios en el modelo User: Añade la interfaz JWTSubject e implementa sus dos métodos
+~~~
+<?php
+
+namespace App\Models;
+
+// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Spatie\Permission\Traits\HasRoles;
+use Tymon\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class User extends Authenticatable implements JWTSubject
+{
+    /** @use HasFactory<\Database\Factories\UserFactory> */
+    use HasFactory, Notifiable, HasRoles;
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var list<string>
+     */
+    protected $fillable = [
+        'name',
+        'lastname',
+        'rut',
+        'password',
+        'cargoId',
+        'generoId',
+        'fechaNacimiento',
+    ];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+
+    /**
+     * Get the name of the unique identifier for the user.
+     *
+     * @return string
+     */
+    public function rut()
+    {
+        return 'rut';
+    }
+
+    public function genero()
+    {
+        return $this->belongsTo(GeneroModel::class, 'generoId');
+    }
+
+    // Métodos necesarios para JWT
+    public function getJWTIdentifier()
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
+}
+~~~
+
+### 4) Cambios en UserController (registro, login y logout con JWT)
+
+- Importar:
+~~~
+use Illuminate\Support\Facades\Cookie;
+~~~
+
+- Agregar el metodo makeJwtCookie
+~~~
+/**
+ * Helper: crea la cookie con el token JWT
+ */
+protected function makeJwtCookie(string $token)
+{
+    // TTL en minutos (factory()->getTTL() devuelve minutos)
+    $ttl = auth('api')->factory()->getTTL();
+
+    // secure en producción (ajusta si trabajas en localhost con https false)
+    $secure = config('app.env') === 'production';
+
+    // cookie(name, value, minutes, path, domain, secure, httpOnly, raw, sameSite)
+    return cookie('jwt_token', $token, $ttl, '/', null, $secure, true, false, 'Strict');
+}
+~~~
+
+- Modificar el metodo guardarNuevo
+~~~
+public function guardarNuevo(Request $request)
+    {
+
+        // 1. Validación de los datos del formulario
+        $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'lastname' => ['required', 'string', 'max:255'],
+            'rut' => ['required', 'min:9', 'max:10', 'unique:' . User::class],
+            'password' => ['required', 'confirmed', Password::defaults()],
+        ], $this->messages);
+
+        // 2. Creación del nuevo usuario en la base de datos
+        $user = User::create([
+            'name' => $request->name,
+            'lastname' => $request->lastname,
+            'rut' => $request->rut,
+            'password' => Hash::make($request->password),
+        ]);
+
+        // 3. Asignar rol "jugador" por defecto
+        $rolJugador = Role::where('name', 'jugador')->first();
+
+        if ($rolJugador) {
+            $user->assignRole($rolJugador);
+        }
+
+        // 4. Generar JWT para el usuario creado (sin loguearlo)
+        $token = auth('api')->login($user); // Esto genera un token válido
+        $cookie = $this->makeJwtCookie($token);
+
+        // 5. Redirigir al login con mensaje y cookie JWT (el usuario aún no está logueado)
+        return redirect()->route('/') // o la ruta de tu formulario de login
+            ->with('success', 'Usuario creado exitosamente. Ahora puede iniciar sesión.')
+            ->withCookie($cookie);
+    }
+~~~
+
+- Modificar el metodo login
+~~~
+public function login(Request $request)
+    {
+        // Paso 1: Ver qué llega en la solicitud del formulario
+        // dd($request->all());
+
+        $credentials = $request->validate([
+            'rut' => ['required'],
+            'password' => ['required'],
+        ]);
+
+        //dd($credentials);
+
+        if (Auth::attempt($credentials)) {
+            $request->session()->regenerate();
+            $user = Auth::user();
+
+            // Generar JWT para el mismo usuario
+            $token = auth('api')->login($user);
+            $cookie = $this->makeJwtCookie($token);
+
+            return redirect()->route('/')->with('success', "Bienvenido {$user->name}, tiene una sesión iniciada exitosamente.")->withCookie($cookie);
+        }
+
+        return back()->withErrors([
+            'username' => 'Las credenciales no coinciden con nuestros registros.',
+        ])->onlyInput('username');
+    }
+~~~
+
+- Modificar el metodo logout
+~~~
+public function logout(Request $request)
+    {
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // Invalidar token JWT guardado en cookie (si existe)
+        $token = $request->cookie('jwt_token');
+        if ($token) {
+            try {
+                auth('api')->setToken($token)->invalidate();
+            } catch (\Exception $e) {
+                // Si falla la invalidación (token expirado u otro), lo ignoramos
+            }
+        }
+
+        // Borrar cookie
+        $forget = Cookie::forget('jwt_token');
+
+        return redirect()->route('/')->with('success', 'Sesión cerrada exitosamente.')->withCookie($forget);
+    }
+~~~
+
+### 5) ARREGLAR BUG del perfil del User
+
+- En return view('backoffice/users/contact' y return view('backoffice/users/security' agregar:
+~~~
+return view('backoffice/users/contact', [
+    'datos' => $datos,
+    'user' => $user
+]);
+
+return view('backoffice/users/security', [
+    'datos' => $datos,
+    'user' => $user
+]);
+~~~
