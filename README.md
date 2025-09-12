@@ -1049,7 +1049,7 @@ if ($rolJugador) {
         }
 ~~~
 
-- En la migración de users, hacer ->nullable() los campos fechaNacimiento, generoId y CargoId
+- En la migración de users, hacer ->nullable() los campos fechaNacimiento y generoId, CargoId hacerlo $table->string('cargoId')->nullable()->default(1);
 
 - En el resources/views/backoffice/_partials/table.blade.php, editar el:
 ~~~
