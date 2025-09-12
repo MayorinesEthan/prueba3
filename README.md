@@ -981,6 +981,21 @@ class CargosController extends Controller
 }
 ~~~
 
+### 14) Agregar las siguientes rutas:
+
+~~~
+Route::get('/backoffice/roles', [RolesController::class, 'index'])->name('backoffice.roles.index');
+    Route::post('/backoffice/roles', [RolesController::class, 'store'])->name('backoffice.roles.new');
+    Route::post('/backoffice/roles/down/{_id}', [RolesController::class, 'down'])->name('backoffice.roles.down');
+    Route::post('/backoffice/roles/up/{_id}', [RolesController::class, 'up'])->name('backoffice.roles.up');
+    Route::post('/backoffice/roles/destroy/{_id}', [RolesController::class, 'destroy'])->name('backoffice.roles.destroy');
+
+    Route::put('/backoffice/roles/{id}/permissions', [RolesController::class, 'updatePermissions'])
+        ->name('backoffice.roles.update.permissions');
+    Route::post('/backoffice/roles/{id}/permissions/toggle', [RolesController::class, 'togglePermission'])
+        ->name('backoffice.roles.toggle.permission');
+~~~
+
 ### RECOMENDACIONES ADICIONALES:
 
 - En el metodo index del UserController, remplazar las siguientes líneas de código:
