@@ -2986,10 +2986,13 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                                         <label class="form-label fw-bold fs-5">{{ $medio->nombre }}</label>
                                         
                                                         {{-- Botón eliminar --}}
+                                                        {{-- Mostrar botón “No agregar” solo si no hay valor guardado --}}
+                                                        @if(!$valor)
                                                         <button type="button" class="btn btn-sm btn-danger"
                                                                 onclick="document.getElementById('medio-{{ $medio->id }}').remove();">
                                                             <span class="iconify" data-icon="tabler-trash" data-inline="false"></span> No agregar
                                                         </button>
+                                                        @endif
                                                     </div>
                                         
                                                     {{-- Campo de valor --}}
