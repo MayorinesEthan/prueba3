@@ -1,4 +1,35 @@
-# Documentacion proceso permisos de usuario.
+# Después de Clonar el repo
+
+Instalar las dependencias de composer
+
+```bash
+composer install
+```
+
+Copiar el entorno
+
+```bash
+cp .env.example .env
+```
+
+Generar la llave
+
+```bash
+php artisan key:generate
+```
+
+Reemplazar la URL del entorno por la que nos entrega Firebase
+
+https://9000-firebase-dwi-25-2-clases-1752585818839.cluster-qhrn7lb3szcfcud6uanedbkjnm.cloudworkstations.dev
+
+Migrar la base de datos
+
+```bash
+php artisan migrate
+```
+Preguntará si queremos crear la base de datos sqlite, respondemos YES
+
+# Documentacion EV3 (Roles y Permisos) y Examen (JWT y manejo de datos en perfil de Usuario)
 
 Estudiantes: Hector Gonzalez y Ethan Mayorines.
 
@@ -2489,11 +2520,21 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                     <div class="card-body">
                                         <p class="card-text text-uppercase text-body-secondary small mb-0">Datos Personales</p>
                                         <ul class="list-unstyled my-3 py-1">
+
+
                                             <li class="d-flex align-items-center mb-4">
                                                 <i class="icon-base ti tabler-user icon-lg"></i><span
                                                     class="fw-medium mx-2">Nombre:</span> <span>{{ $user->name }}
                                                     {{ $user->lastname }}</span>
                                             </li>
+
+                                            {{-- ASI SE ACCEDE AL NOMBRE DEL ROL --}}
+                                            <li class="d-flex align-items-center mb-4">
+                                                <i class="icon-base ti tabler-crown icon-lg"></i><span
+                                                    class="fw-medium mx-2">Rol:</span>
+                                                <span>{{ auth()->user()->getRoleNames()->first() ?? 'Sin rol' }}</span>
+                                            </li>
+
                                             <li class="d-flex align-items-center mb-4">
                                                 <i class="icon-base ti tabler-check icon-lg"></i><span
                                                     class="fw-medium mx-2">Estado:</span>
@@ -2522,14 +2563,6 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                                 <span>{{ $user->fechaNacimiento ? \Carbon\Carbon::parse($user->fechaNacimiento)->format('d-m-Y') : 'Sin asignar' }}</span>
                                             </li>
 
-                                            {{-- ASI SE ACCEDE AL NOMBRE DEL ROL --}}
-                                            <li class="d-flex align-items-center mb-4">
-                                                <i class="icon-base ti tabler-crown icon-lg"></i><span
-                                                    class="fw-medium mx-2">Rol:</span>
-                                                <span>{{ auth()->user()->getRoleNames()->first() ?? 'Sin rol' }}</span>
-                                            </li>
-
-
                                             <!-- Cargo -->
                                             <li class="d-flex align-items-center mb-4">
                                                 <i class="icon-base ti tabler-briefcase icon-lg"></i>
@@ -2557,29 +2590,38 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                         <!-- Medios de contacto -->
                                         <p class="card-text text-uppercase text-body-secondary small mb-0">Medios de contacto</p>
                                         <ul class="list-unstyled my-3 py-1">
-                                            @foreach ($user->mediosDeContactoVisibles as $contacto)
-                                                @php
-                                                    // Usar el nombre del medio como tipo
-                                                    $tipo = strtolower($contacto->nombre ?? 'otro');
-
-                                                    $icon = match ($tipo) {
-                                                        'telefono' => 'ti tabler-phone-call',
-                                                        'wsp', 'whatsapp' => 'ti tabler-brand-whatsapp',
-                                                        'email' => 'ti tabler-mail',
-                                                        'skype' => 'ti tabler-messages',
-                                                        'twitter' => 'ti tabler-brand-twitter',
-                                                        default => 'ti tabler-info-circle',
-                                                    };
-                                                @endphp
+                                            @if($user->mediosDeContactoVisibles->isEmpty())
                                                 <li class="d-flex align-items-center mb-4">
-                                                    <i class="icon-base {{ $icon }} icon-lg"></i>
-                                                    <span class="fw-medium mx-2">{{ $contacto->nombre }}:</span>
-                                                    <span>{{ $contacto->pivot->valor }}</span>
+                                                    <i class="icon-base ti tabler-info-circle icon-lg"></i>
+                                                    <span class="text-muted fst-italic">No definido por el momento</span>
                                                 </li>
-                                            @endforeach
-
-
+                                                <li class="mb-3">
+                                                    <a href="{{ route('backoffice.user.contact') }}" class="btn btn-sm btn-primary">
+                                                        <i class="icon-base ti tabler-users icon-sm me-1_5"></i> Agregar medio de contacto
+                                                    </a>
+                                                </li>
+                                            @else
+                                                @foreach ($user->mediosDeContactoVisibles as $contacto)
+                                                    @php
+                                                        $tipo = strtolower($contacto->nombre ?? 'otro');
+                                                        $icon = match ($tipo) {
+                                                            'telefono' => 'ti tabler-phone-call',
+                                                            'wsp', 'whatsapp' => 'ti tabler-brand-whatsapp',
+                                                            'email' => 'ti tabler-mail',
+                                                            'skype' => 'ti tabler-messages',
+                                                            'twitter' => 'ti tabler-brand-twitter',
+                                                            default => 'ti tabler-info-circle',
+                                                        };
+                                                    @endphp
+                                                    <li class="d-flex align-items-center mb-4">
+                                                        <i class="icon-base {{ $icon }} icon-lg"></i>
+                                                        <span class="fw-medium mx-2">{{ $contacto->nombre }}:</span>
+                                                        <span>{{ $contacto->pivot->valor }}</span>
+                                                    </li>
+                                                @endforeach
+                                            @endif
                                         </ul>
+
                                     </div>
                                 </div>
                                 <!--/ About User -->
@@ -2880,8 +2922,8 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                         <div class="col-12">
                             <div class="card mb-6">
                                 <div class="card-body">
-                                    <p class="card-text text-uppercase text-body-secondary small mb-4">
-                                        Datos de Contacto
+                                    <p class="card-text text-uppercase text-body-secondary small mb-4 fs-5">
+                                        Cambio de datos personales
                                     </p>
 
                                     <form action="{{ route('backoffice.user.contact.update') }}" method="post">
@@ -2889,86 +2931,101 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                         @method('PUT')
 
                                         {{-- Género --}}
-                                        <label class="form-label mt-3 fw-bold fs-5">Género</label>
-                                        <select name="generoId" class="form-control mb-1 {{ $user->generoId ? 'bg-info bg-opacity-10' : '' }}">
-                                            <option value="">Seleccione...</option>
-                                            @foreach ($generos as $genero)
-                                                <option value="{{ $genero->id }}" {{ $user->generoId == $genero->id ? 'selected' : '' }}>
-                                                    {{ $genero->nombre }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted d-block mb-3">
-                                            {{ $user->generoId ? 'Valor guardado, puede modificarlo si desea.' : 'Seleccione su género.' }}
-                                        </small>
+                                        <div class="mb-4 border border-3 rounded p-3 position-relative">
+                                            <label class="form-label fw-bold fs-5">Género</label>
+                                            <select name="generoId" class="form-control mb-1 {{ $user->generoId ? 'bg-info bg-opacity-10' : '' }}">
+                                                <option value="">Seleccione...</option>
+                                                @foreach ($generos as $genero)
+                                                    <option value="{{ $genero->id }}" {{ $user->generoId == $genero->id ? 'selected' : '' }}>
+                                                        {{ $genero->nombre }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted d-block mb-3">
+                                                {!! $user->generoId ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Seleccione su género.' !!}
+                                            </small>
+                                        </div>
 
                                         {{-- Oficio --}}
-                                        <label class="form-label mt-3 fw-bold fs-5">Oficio</label>
-                                        <select name="oficioId" class="form-control mb-1 {{ $user->oficioId ? 'bg-info bg-opacity-10' : '' }}">
-                                            <option value="">Seleccione...</option>
-                                            @foreach ($oficios as $oficio)
-                                                <option value="{{ $oficio->id }}" {{ $user->oficioId == $oficio->id ? 'selected' : '' }}>
-                                                    {{ $oficio->nombre }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted d-block mb-3">
-                                            {{ $user->oficioId ? 'Valor guardado, puede modificarlo si desea.' : 'Seleccione su oficio.' }}
-                                        </small>
+                                        <div class="mb-4 border border-3 rounded p-3 position-relative">
+                                            <label class="form-label fw-bold fs-5">Oficio</label>
+                                            <select name="oficioId" class="form-control mb-1 {{ $user->oficioId ? 'bg-info bg-opacity-10' : '' }}">
+                                                <option value="">Seleccione...</option>
+                                                @foreach ($oficios as $oficio)
+                                                    <option value="{{ $oficio->id }}" {{ $user->oficioId == $oficio->id ? 'selected' : '' }}>
+                                                        {{ $oficio->nombre }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted d-block mb-3">
+                                                {!! $user->oficioId ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Seleccione su oficio.' !!}
+                                            </small>
+                                        </div>
 
                                         {{-- Nacionalidad --}}
-                                        <label class="form-label mt-3 fw-bold fs-5">Nacionalidad</label>
-                                        <select name="nacionalidadId" class="form-control mb-1 {{ $user->nacionalidadId ? 'bg-info bg-opacity-10' : '' }}">
-                                            <option value="">Seleccione...</option>
-                                            @foreach ($nacionalidades as $nac)
-                                                <option value="{{ $nac->id }}" {{ $user->nacionalidadId == $nac->id ? 'selected' : '' }}>
-                                                    {{ $nac->nombre }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted d-block mb-3">
-                                            {{ $user->nacionalidadId ? 'Valor guardado, puede modificarlo si desea.' : 'Seleccione su nacionalidad.' }}
-                                        </small>
+                                        <div class="mb-4 border border-3 rounded p-3 position-relative">
+                                            <label class="form-label fw-bold fs-5">Nacionalidad</label>
+                                            <select name="nacionalidadId" class="form-control mb-1 {{ $user->nacionalidadId ? 'bg-info bg-opacity-10' : '' }}">
+                                                <option value="">Seleccione...</option>
+                                                @foreach ($nacionalidades as $nac)
+                                                    <option value="{{ $nac->id }}" {{ $user->nacionalidadId == $nac->id ? 'selected' : '' }}>
+                                                        {{ $nac->nombre }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted d-block mb-3">
+                                                {!! $user->nacionalidadId ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Seleccione su nacionalidad.' !!}
+                                            </small>
+                                        </div>
+                                        
 
                                         {{-- Comuna --}}
-                                        <label class="form-label mt-3 fw-bold fs-5">Comuna</label>
-                                          <select name="comunaId" class="form-control mb-1 {{ $user->comunaId ? 'bg-info bg-opacity-10' : '' }}">
-                                              <option value="">Seleccione...</option>
-                                              @foreach ($comunas as $comuna)
-                                                  <option value="{{ $comuna->id }}" {{ $user->comunaId == $comuna->id ? 'selected' : '' }}>
-                                                      {{ $comuna->nombre }}
-                                                  </option>
-                                              @endforeach
-                                          </select>
-                                          <small class="text-muted d-block mb-3">
-                                              {{ $user->comunaId ? 'Valor guardado, puede modificarlo si desea.' : 'Seleccione su comuna.' }}
-                                          </small>
+                                        <div class="mb-4 border border-3 rounded p-3 position-relative">
+                                            <label class="form-label fw-bold fs-5">Comuna</label>
+                                              <select name="comunaId" class="form-control mb-1 {{ $user->comunaId ? 'bg-info bg-opacity-10' : '' }}">
+                                                  <option value="">Seleccione...</option>
+                                                  @foreach ($comunas as $comuna)
+                                                      <option value="{{ $comuna->id }}" {{ $user->comunaId == $comuna->id ? 'selected' : '' }}>
+                                                          {{ $comuna->nombre }}
+                                                      </option>
+                                                  @endforeach
+                                              </select>
+                                              <small class="text-muted d-block mb-3">
+                                                {!! $user->comunaId ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Seleccione su comuna.' !!}
+                                                </small>
+                                        </div>
+                                        
 
                                         {{-- Fecha de Nacimiento --}}
-                                        <label class="form-label mt-3 fw-bold fs-5">Fecha de Nacimiento</label>
-                                        @php
-                                            $fecha = old('nacimiento', $user->fechaNacimiento ? $user->fechaNacimiento->format('Y-m-d') : '');
-                                        @endphp
-                                        <input type="date" name="nacimiento"
-                                              value="{{ $fecha }}"
-                                              class="form-control mb-1 {{ $user->fechaNacimiento ? 'bg-info bg-opacity-10' : '' }}">
-                                        <small class="text-muted d-block mb-3">
-                                            {{ $user->fechaNacimiento ? 'Valor guardado, puede modificarlo si desea.' : 'Ingrese su fecha de nacimiento.' }}
-                                        </small>
+                                        <div class="mb-4 border border-3 rounded p-3 position-relative">
+                                            <label class="form-label fw-bold fs-5">Fecha de Nacimiento</label>
+                                            @php
+                                                $fecha = old('nacimiento', $user->fechaNacimiento ? $user->fechaNacimiento->format('Y-m-d') : '');
+                                            @endphp
+                                            <input type="date" name="nacimiento"
+                                                  value="{{ $fecha }}"
+                                                  class="form-control mb-1 {{ $user->fechaNacimiento ? 'bg-info bg-opacity-10' : '' }}">
+                                            <small class="text-muted d-block mb-3">
+                                                    {!! $user->fechaNacimiento ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Ingrese su fecha de nacimiento.' !!}
+                                            </small>
+                                        </div>
+                                            
 
                                         {{-- Pierna Dominante --}}
-                                        <label class="form-label mt-3 fw-bold fs-5">Pierna Dominante</label>
-                                        <select name="piernaDominanteId" class="form-control mb-1 {{ $user->piernaDominanteId ? 'bg-info bg-opacity-10' : '' }}">
-                                            <option value="">Seleccione...</option>
-                                            @foreach ($piernas as $pierna)
-                                                <option value="{{ $pierna->id }}" {{ $user->piernaDominanteId == $pierna->id ? 'selected' : '' }}>
-                                                    {{ $pierna->nombre }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                        <small class="text-muted d-block mb-3">
-                                            {{ $user->piernaDominanteId ? 'Valor guardado, puede modificarlo si desea.' : 'Seleccione su pierna dominante.' }}
-                                        </small>
+                                        <div class="mb-4 border border-3 rounded p-3 position-relative">
+                                            <label class="form-label fw-bold fs-5">Pierna Dominante</label>
+                                            <select name="piernaDominanteId" class="form-control mb-1 {{ $user->piernaDominanteId ? 'bg-info bg-opacity-10' : '' }}">
+                                                <option value="">Seleccione...</option>
+                                                @foreach ($piernas as $pierna)
+                                                    <option value="{{ $pierna->id }}" {{ $user->piernaDominanteId == $pierna->id ? 'selected' : '' }}>
+                                                        {{ $pierna->nombre }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                            <small class="text-muted d-block mb-3">
+                                                {!! $user->piernaDominanteId ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Seleccione su pierna dominante.' !!}
+                                            </small>   
+                                        </div>                                     
 
                                         {{-- Medios de Contacto --}}
                                         <br>
@@ -2981,12 +3038,13 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                                     $visible = $pivot->visible ?? true; // por defecto visible
                                                 @endphp
                                         
-                                                <div class="mb-4 border rounded p-3 position-relative" id="medio-{{ $medio->id }}">
+                                                <div class="mb-4 border border-3 rounded p-3 position-relative" id="medio-{{ $medio->id }}">
+
                                                     <div class="d-flex justify-content-between align-items-center">
                                                         <label class="form-label fw-bold fs-5">{{ $medio->nombre }}</label>
                                         
                                                         {{-- Botón eliminar --}}
-                                                        {{-- Mostrar botón “No agregar” solo si no hay valor guardado --}}
+                                                        {{-- Mostrar botón "No agregar" solo si no hay valor guardado --}}
                                                         @if(!$valor)
                                                         <button type="button" class="btn btn-sm btn-danger"
                                                                 onclick="document.getElementById('medio-{{ $medio->id }}').remove();">
@@ -3014,8 +3072,8 @@ Route::put('/backoffice/user/contact', [UserController::class, 'updateContacto']
                                                     </div>
                                         
                                                     <small class="text-muted d-block mt-1">
-                                                        {{ $valor ? 'Valor guardado, puede modificarlo si desea.' : 'Ingrese su ' . strtolower($medio->nombre) }}
-                                                    </small>
+                                                        {!! $valor ? 'Valor guardado, <strong>puede modificarlo si desea.</strong>' : 'Ingrese su ' . strtolower($medio->nombre) !!}
+                                                    </small>                                                    
                                                 </div>
                                             @endforeach
                                         </div>
